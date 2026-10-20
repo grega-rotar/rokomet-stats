@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS checks (match_id INTEGER, name TEXT, ok INTEGER, deta
 CREATE TABLE IF NOT EXISTS crawl_progress (key TEXT PRIMARY KEY, season_id INTEGER, season TEXT, shard TEXT,
     leagues_done INTEGER, leagues_total INTEGER, league TEXT, matches_new INTEGER, errors INTEGER, state TEXT,
     started_at TEXT, updated_at TEXT);
+CREATE TABLE IF NOT EXISTS crawl_runs (started_at TEXT, finished_at TEXT, season_id INTEGER, matches_new INTEGER,
+    errors INTEGER);
 """
 
 
@@ -289,6 +291,7 @@ def main():
                 try:
                     prefetch(m["id"], deep)
                     load_match(db, m, sid, lid, deep, full_detail)
+                    db.execute("DELETE FROM checks WHERE match_id=? AND name='load'", (m["id"],))  # earlier failure
                     loaded += 1
                     progress["new"] += 1
                 except Exception as ex:
@@ -300,6 +303,9 @@ def main():
         progress["done"] += 1
         print(f"[{progress['done']}/{len(mine)}] {name}: {loaded} new matches{' (deep)' if deep else ''}", flush=True)
     report("done")
+    db.execute("INSERT INTO crawl_runs VALUES (?,?,?,?,?)",  # one row per shard process
+               (started, time.strftime("%Y-%m-%dT%H:%M:%S%z"), sid, progress["new"], progress["errors"]))
+    db.commit()
 
 
 if __name__ == "__main__":
