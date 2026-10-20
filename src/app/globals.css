@@ -1,26 +1,140 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Colours from the RZS livestat site (livestat.rokometna-zveza.si), so the app sits next to it. */
+@theme {
+  --color-court: #94c11e;
+  --color-slate: #2c3e50;
+  --color-slate-deep: #22313f;
+  --color-sky: #36a9e0;
+  --color-sky-dark: #1f8fc6;
+  --color-floor: #edeff4;
+  --color-line: #e4e7ed;
+  --color-ink: #1f2a36;
+  --color-muted: #8a9099;
+  --color-foul: #d64545;
+  --font-display: var(--font-montserrat), system-ui, sans-serif;
+  --font-sans: var(--font-source-sans), system-ui, sans-serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  background: var(--color-floor);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* The slanted panel from the RZS header: skew the box, un-skew the text inside. */
+.skew-panel {
+  transform: skewX(-14deg);
+}
+.skew-panel > * {
+  display: inline-block;
+  transform: skewX(14deg);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-sky);
+  outline-offset: 2px;
+}
+
+/* Claude's answers are Markdown: stats come back as tables, lists and bold numbers. */
+.answer {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.answer > * + * {
+  margin-top: 0.75em;
+}
+.answer h1,
+.answer h2,
+.answer h3 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-size: 0.85rem;
+  color: var(--color-slate);
+  margin-top: 1.25em;
+}
+.answer ul {
+  list-style: disc;
+  padding-left: 1.25em;
+}
+.answer ol {
+  list-style: decimal;
+  padding-left: 1.25em;
+}
+.answer a {
+  color: var(--color-sky-dark);
+  text-decoration: underline;
+}
+.answer strong {
+  font-weight: 700;
+  color: var(--color-slate);
+}
+.answer code {
+  font-size: 0.875em;
+  background: var(--color-floor);
+  padding: 0.1em 0.35em;
+  border-radius: 2px;
+}
+.answer pre {
+  background: var(--color-slate-deep);
+  color: #e8edf2;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+  font-size: 0.85rem;
+}
+.answer pre code {
+  background: none;
+  padding: 0;
+}
+.answer .table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-line);
+}
+.answer table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9rem;
+}
+.answer th {
+  background: var(--color-slate);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  white-space: nowrap;
+}
+/* Cells stay on one line; on a phone the table scrolls sideways inside .table-wrap. */
+.answer td {
+  overflow-wrap: normal;
+  white-space: nowrap;
+  padding: 0.45rem 0.75rem;
+  border-top: 1px solid var(--color-line);
+}
+.answer tbody tr:nth-child(even) {
+  background: #f6f7fa;
+}
+
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+.live-dot {
+  animation: live-pulse 1.2s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-dot {
+    animation: none;
+  }
 }
