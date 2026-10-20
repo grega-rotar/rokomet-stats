@@ -25,6 +25,7 @@ export function CompetitionPicker({
   compId,
   description,
   facts = [],
+  basePath = "/stats",
 }: {
   competitions: PickerCompetition[];
   seasons: { id: number; name: string }[];
@@ -32,6 +33,8 @@ export function CompetitionPicker({
   compId?: number;
   description?: string;
   facts?: Fact[];
+  /** The page the picker navigates on: /stats (overview) or /stats/teams. */
+  basePath?: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -39,7 +42,7 @@ export function CompetitionPicker({
   const [active, setActive] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
   const current = competitions.find((c) => c.id === compId);
-  const href = (id: number) => `/stats?season=${seasonId}&comp=${id}`;
+  const href = (id: number) => `${basePath}?season=${seasonId}&comp=${id}`;
 
   const filtered = useMemo(() => {
     const q = fold(query.trim());
@@ -92,7 +95,8 @@ export function CompetitionPicker({
   }
 
   return (
-    <div ref={rootRef} className="relative mb-6" onKeyDown={onKey}>
+    <div className="mb-6">
+    <div ref={rootRef} className="relative" onKeyDown={onKey}>
       <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
         <div className="min-w-0">
           <div className="text-sm font-semibold text-sky-dark">{current?.group.label ?? "Competitions"}</div>
@@ -123,14 +127,20 @@ export function CompetitionPicker({
           label="Season"
           value={String(seasonId)}
           options={seasons.map((x) => ({ value: String(x.id), label: x.name }))}
-          onChange={(v) => router.push(`/stats?season=${v}`, { scroll: false })}
+          onChange={(v) => router.push(`${basePath}?season=${v}`, { scroll: false })}
           className="w-40"
         />
       </div>
-      <Facts items={facts} />
 
       {open && (
-        <div role="dialog" aria-label="Choose a competition" className="absolute inset-x-0 top-full z-30 mt-2 rounded-2xl bg-white shadow-2xl ring-1 ring-black/5">
+        <>
+        {/* Dims the page under the menu; a click on it closes the menu (the outside-click handler). */}
+        <div className="fixed inset-0 z-20 bg-slate/10 backdrop-blur-[1px]" aria-hidden />
+        <div
+          role="dialog"
+          aria-label="Choose a competition"
+          className="absolute inset-x-0 top-full z-30 mt-2 flex max-h-[min(70vh,600px)] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 max-sm:fixed max-sm:inset-x-3 max-sm:top-16 max-sm:mt-0 max-sm:max-h-[calc(100dvh-5rem)]"
+        >
           <div className="border-b border-line p-3">
             <div className="flex items-center gap-2 rounded-xl bg-floor px-3">
               <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-muted" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
@@ -151,7 +161,7 @@ export function CompetitionPicker({
               <span className="hidden text-xs text-muted sm:inline">↑↓ Enter · Esc</span>
             </div>
           </div>
-          <div className="max-h-[min(65vh,560px)] overflow-y-auto overscroll-contain p-4">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
             {groups.length === 0 && <p className="px-2 py-6 text-center text-sm text-muted">No competition matches &ldquo;{query}&rdquo;.</p>}
             <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
               {groups.map((g) => (
@@ -184,7 +194,10 @@ export function CompetitionPicker({
             </div>
           </div>
         </div>
+        </>
       )}
+    </div>
+    <Facts items={facts} />
     </div>
   );
 }
