@@ -13,6 +13,7 @@ A web app with a chat UI. Each chat message is answered by Claude, run through `
 | [player-insights.md](player-insights.md) | Per-player data, weak spots and drills, chat questions, similar players, rankings, Elo: what the data supports |
 | [drills.md](drills.md) | Drill plans: stored per player and season, background runs, the JSON contract and the prompt |
 | [chat-blocks.md](chat-blocks.md) | ```court and ```goal blocks in chat answers, the 3D goal heatmap, the team page goal |
+| [notifications.md](notifications.md) | Web push for new results: devices, follows, the notifier, PWA |
 | [handball-glossary.md](handball-glossary.md) | Slovenian API/PDF terms in English, plus a short handball primer |
 | [open-questions.md](open-questions.md) | Still to decide |
 

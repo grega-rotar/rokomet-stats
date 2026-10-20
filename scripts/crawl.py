@@ -56,6 +56,8 @@ CREATE TABLE IF NOT EXISTS checks (match_id INTEGER, name TEXT, ok INTEGER, deta
 CREATE TABLE IF NOT EXISTS crawl_progress (key TEXT PRIMARY KEY, season_id INTEGER, season TEXT, shard TEXT,
     leagues_done INTEGER, leagues_total INTEGER, league TEXT, matches_new INTEGER, errors INTEGER, state TEXT,
     started_at TEXT, updated_at TEXT);
+-- Every season RZS lists (pos 0 = newest), so /stats/crawl can show progress over all of them.
+CREATE TABLE IF NOT EXISTS crawl_seasons (id INTEGER PRIMARY KEY, name TEXT, pos INTEGER);
 """
 
 
@@ -252,6 +254,8 @@ def main():
     db.executescript(SCHEMA)
     migrate(db)
     all_seasons = api("/seasons", fresh=True)  # newest first
+    db.executemany("INSERT OR REPLACE INTO crawl_seasons VALUES (?,?,?)",
+                   [(s["id"], s["ime"], i) for i, s in enumerate(all_seasons)])
     season = all_seasons[0] if arg == "current" else next(s for s in all_seasons if s["id"] == int(arg))
     sid = season["id"]
     full_detail = season_year(season) >= FULL_DETAIL_FROM

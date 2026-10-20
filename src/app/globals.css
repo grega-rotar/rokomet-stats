@@ -16,6 +16,20 @@
   --font-sans: var(--font-source-sans), system-ui, sans-serif;
 }
 
+html,
+body {
+  overflow: hidden;
+}
+
+/* Thin, quiet scrollbars; .dark-scroll for the dark sidebar. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #c5ccd6 transparent;
+}
+.dark-scroll {
+  scrollbar-color: rgb(255 255 255 / 0.15) transparent;
+}
+
 body {
   background: var(--color-floor);
   color: var(--color-ink);
@@ -257,4 +271,15 @@ body {
 }
 .court-vignette {
   background: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 60%, rgb(30 43 56 / 0.22) 100%);
+}
+/* Tailwind 4 leaves buttons on the default arrow; everything clickable gets the hand. */
+@layer base {
+  button:not(:disabled),
+  [role="button"],
+  [role="option"],
+  [role="menuitem"],
+  summary,
+  label[for] {
+    cursor: pointer;
+  }
 }

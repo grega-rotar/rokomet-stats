@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Montserrat, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
 
@@ -17,7 +17,11 @@ const sourceSans = Source_Sans_3({
 export const metadata: Metadata = {
   title: "Rokomet stats",
   description: "Chat about Slovenian handball statistics",
+  // Installed to the home screen it opens like an app; iOS needs that for push (specs/notifications.md).
+  appleWebApp: { capable: true, title: "Rokomet" },
 };
+
+export const viewport: Viewport = { themeColor: "#1e2b38" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
