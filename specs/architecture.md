@@ -37,6 +37,7 @@ Browser ── HTTPS ──> Cloudflare (proxy) ── HTTPS ──> Caddy ─�
 - **Timeout**: kill the process after `RUN_TIMEOUT_SECONDS` (default 600).
 - **Stop button / tab closed**: when the client disconnects, send SIGTERM to the process.
 - **Errors**: a non-zero exit or an `is_error` result is saved as an error message in the chat, so the UI can offer "retry".
+- **Account pick**: runs get `CLAUDE_POOL_FRESH=0`, so claude-pool picks an account on its saved usage numbers right away (a check first costs ~3 s per reply). The server runs `claude-pool --pool-refresh` in the background at most every 5 min, when a reply starts.
 - Never pass user text through a shell: use `spawn(cmd, args)` with an argument array.
 
 ## Data model (SQLite)
