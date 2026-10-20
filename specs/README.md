@@ -9,6 +9,7 @@ A web app with a chat UI. Each chat message is answered by Claude, run through `
 | [deployment.md](deployment.md) | GitHub Actions: build, push, deploy, rollback |
 | [decisions.md](decisions.md) | What we chose and why (Docker, Cloudflare + Caddy, Next.js, SQLite) |
 | [data-source.md](data-source.md) | Where the handball data comes from: RZS public API, stats PDFs, goal zones |
+| [stats-pipeline.md](stats-pipeline.md) | Crawler, stats database, checks and AI review, built into the app |
 | [open-questions.md](open-questions.md) | Still to decide |
 
 ## MVP is done when

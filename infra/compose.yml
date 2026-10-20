@@ -23,10 +23,26 @@ services:
     env_file: .env
     environment:
       CLAUDE_POOL_SERVER_ID: t4a
+      # Chat Claude may only read the stats (scripts/chat-CLAUDE.md); this overrides .env.
+      CLAUDE_ALLOWED_TOOLS: "Bash(python3 /app/scripts/query.py:*),Bash(python3 /app/scripts/players.py:*)"
     volumes:
       - app_data:/data
       - claude_home:/home/app/.claude
       - ./claude-pool:/home/app/.config/claude-pool:ro
+
+  # Fills /data/stats.db from the RZS API (specs/stats-pipeline.md). Same image as app.
+  crawler:
+    image: ghcr.io/grega-rotar/rokomet-stats:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    command: ["sh", "/app/scripts/crawler-loop.sh"]
+    healthcheck:
+      disable: true
+    environment:
+      CRAWL_INTERVAL_SECONDS: 21600
+      CRAWL_SHARDS: 3
+      CRAWL_HISTORY: "72 71"
+    volumes:
+      - app_data:/data
 
 volumes:
   caddy_data:

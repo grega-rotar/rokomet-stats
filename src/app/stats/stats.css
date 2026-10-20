@@ -1,0 +1,9 @@
+/* The handball goal: red and white striped posts and crossbar, open at the bottom (the goal line). */
+.goal-frame {
+  padding: 10px 10px 0;
+  background:
+    repeating-linear-gradient(90deg, var(--color-foul) 0 20px, #fff 20px 40px) top / 100% 10px no-repeat,
+    repeating-linear-gradient(180deg, var(--color-foul) 0 20px, #fff 20px 40px) left / 10px 100% no-repeat,
+    repeating-linear-gradient(180deg, var(--color-foul) 0 20px, #fff 20px 40px) right / 10px 100% no-repeat;
+  box-shadow: 0 1px 0 0 var(--color-slate);
+}
