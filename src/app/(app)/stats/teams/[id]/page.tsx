@@ -4,6 +4,7 @@ import { PageLoading } from "../../ui";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { team } from "@/lib/stats/queries";
+import { FollowButton } from "../../push";
 import { Card, Empty, GoalFrame, PageTitle, PlayerLink, TeamLink } from "../../ui";
 import { TeamEloCard } from "../../elo-ui";
 import { AskAbout } from "../../chat-panel";
@@ -41,6 +42,7 @@ async function TeamPageBody({ params }: PageProps<"/stats/teams/[id]">) {
         eyebrow={<Link href={`/stats?season=${t.season_id}&comp=${t.competition_id}`} className="hover:underline">{t.competition}</Link>}
         title={t.name}
         sub={`${played.length} matches · ${won} won`}
+        action={<FollowButton kind="team" refId={id} label={t.name} />}
       />
 
       <TeamEloCard teamId={id} seasonId={t.season_id} competitionId={t.competition_id} />

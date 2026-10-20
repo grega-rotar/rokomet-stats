@@ -14,12 +14,15 @@ export function Card({ title, aside, children, className = "" }: { title: string
   );
 }
 
-export function PageTitle({ eyebrow, title, sub }: { eyebrow?: ReactNode; title: string; sub?: ReactNode }) {
+export function PageTitle({ eyebrow, title, sub, action }: { eyebrow?: ReactNode; title: string; sub?: ReactNode; action?: ReactNode }) {
   return (
-    <div className="mb-6">
-      {eyebrow && <div className="text-sm font-semibold text-sky-dark">{eyebrow}</div>}
-      <h1 className="font-display text-2xl font-bold tracking-tight text-slate md:text-3xl">{title}</h1>
-      {sub && <div className="mt-1 text-muted">{sub}</div>}
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
+      <div className="min-w-0">
+        {eyebrow && <div className="text-sm font-semibold text-sky-dark">{eyebrow}</div>}
+        <h1 className="font-display text-2xl font-bold tracking-tight text-slate md:text-3xl">{title}</h1>
+        {sub && <div className="mt-1 text-muted">{sub}</div>}
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }

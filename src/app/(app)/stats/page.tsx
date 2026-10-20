@@ -2,7 +2,9 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { PageLoading } from "./ui";
 import Link from "next/link";
-import { competitions, results, searchPlayers, seasons, standings, topScorers } from "@/lib/stats/queries";
+import { competitionGroup, shortName } from "@/lib/stats/groups";
+import { competitions, results, seasons, standings, topScorers } from "@/lib/stats/queries";
+import { CompetitionPicker } from "./competition-picker";
 import { Card, Empty, PageTitle, PlayerLink, TeamLink } from "./ui";
 
 export default function StatsHome(props: PageProps<"/stats">) {
@@ -29,8 +31,6 @@ async function StatsHomeBody({ searchParams }: PageProps<"/stats">) {
   const comps = competitions(seasonId);
   const compId = Number(sp.comp) || comps[0]?.id;
   const comp = comps.find((c) => c.id === compId);
-  const q = typeof sp.q === "string" ? sp.q.trim() : "";
-  const found = q.length >= 2 ? searchPlayers(q) : [];
   const table = comp ? standings(comp.id, seasonId) : [];
   const latest = comp ? results(comp.id, seasonId) : [];
   const scorers = comp ? topScorers(comp.id, seasonId) : [];
@@ -38,25 +38,21 @@ async function StatsHomeBody({ searchParams }: PageProps<"/stats">) {
 
   return (
     <>
-      <PageTitle eyebrow={`Season ${season?.name ?? ""}`} title={comp?.name ?? "Competitions"} sub={`${comp?.matches ?? 0} matches played`} />
+      <PageTitle eyebrow={`${comp ? competitionGroup(comp.name).label + " · " : ""}Season ${season?.name ?? ""}`} title={comp ? shortName(comp.name) : "Competitions"} sub={`${comp?.matches ?? 0} matches played`} />
 
-      <form className="mb-6 flex flex-wrap gap-2" action="/stats">
-        <input type="hidden" name="season" value={seasonId} />
-        <select name="comp" defaultValue={compId} className="min-w-0 flex-1 rounded-xl border border-line bg-white px-3 py-2 text-sm shadow-sm">
-          {["top", "senior", "youth"].map((cat) => (
-            <optgroup key={cat} label={{ top: "Top leagues", senior: "Senior", youth: "Youth" }[cat]}>
-              {comps.filter((c) => c.category === cat).map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} ({c.matches})
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
-        <button className="bg-sky rounded-xl px-4 py-2 text-sm font-semibold shadow-sm text-white hover:bg-sky-dark">
-          Show
-        </button>
-      </form>
+      <CompetitionPicker
+        competitions={comps.map((c) => ({
+          id: c.id,
+          name: c.name,
+          short: shortName(c.name),
+          matches: c.matches,
+          top: c.category === "top",
+          group: competitionGroup(c.name),
+        }))}
+        seasons={allSeasons}
+        seasonId={seasonId}
+        compId={compId}
+      />
 
       <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
         <Card title="Standings" aside="2 points for a win, 1 for a draw">
@@ -97,36 +93,6 @@ async function StatsHomeBody({ searchParams }: PageProps<"/stats">) {
         </Card>
 
         <div className="flex flex-col gap-6">
-          <Card title="Find a player">
-            <form action="/stats" className="flex gap-2">
-              <input type="hidden" name="season" value={seasonId} />
-              {compId && <input type="hidden" name="comp" value={compId} />}
-              <input
-                name="q"
-                defaultValue={q}
-                placeholder="Name, e.g. Jesenko"
-                className="min-w-0 flex-1 rounded-xl border border-line px-3 py-2 text-sm"
-                aria-label="Player name"
-              />
-              <button className="bg-slate rounded-xl px-4 py-2 text-sm font-semibold shadow-sm text-white hover:bg-slate-deep">
-                Search
-              </button>
-            </form>
-            {q.length >= 2 && (
-              <ul className="mt-3 divide-y divide-line text-sm">
-                {found.length ? (
-                  found.map((p) => (
-                    <li key={p.player_id} className="flex justify-between gap-2 py-1.5">
-                      <span><PlayerLink id={p.player_id} name={p.name} /> <span className="text-muted">· {p.position}</span></span>
-                      <span className="text-right text-muted">{p.team}</span>
-                    </li>
-                  ))
-                ) : (
-                  <li className="py-1.5 text-muted">No player called &ldquo;{q}&rdquo;. Check the spelling, with č, š, ž.</li>
-                )}
-              </ul>
-            )}
-          </Card>
 
           <Card title="Top scorers" aside={<Link href={`/stats/rankings?comp=${compId}`} className="text-sky-dark hover:underline">All rankings</Link>}>
             {scorers.length ? (

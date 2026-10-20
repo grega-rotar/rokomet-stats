@@ -11,6 +11,7 @@ A web app with a chat UI. Each chat message is answered by Claude, run through `
 | [data-source.md](data-source.md) | Where the handball data comes from: RZS public API, stats PDFs, goal zones |
 | [stats-pipeline.md](stats-pipeline.md) | Crawler, stats database, checks, stats pages and chat tools, built into the app |
 | [player-insights.md](player-insights.md) | Per-player data, weak spots and drills, chat questions, similar players, rankings, Elo: what the data supports |
+| [notifications.md](notifications.md) | Web push for new results: devices, follows, the notifier, PWA |
 | [handball-glossary.md](handball-glossary.md) | Slovenian API/PDF terms in English, plus a short handball primer |
 | [open-questions.md](open-questions.md) | Still to decide |
 

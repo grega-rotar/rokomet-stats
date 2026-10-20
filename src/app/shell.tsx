@@ -32,6 +32,7 @@ const PAGES = [
   { href: "/stats/teams", label: "Teams", exact: true, icon: <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" /> },
   { href: "/stats/near", label: "Near you", exact: false, icon: <path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11zM12 12a2 2 0 100-4 2 2 0 000 4z" /> },
   { href: "/stats/data", label: "Data quality", exact: false, icon: <path d="M9 12l2 2 4-4M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z" /> },
+  { href: "/stats/alerts", label: "Alerts", exact: false, icon: <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0" /> },
   { href: "/stats/crawl", label: "Crawler", exact: false, icon: <path d="M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3M18 3v4h-4M6 21v-4h4" /> },
   { href: "/diagrams", label: "How it works", exact: false, icon: <path d="M3 3h7v7H3zM14 14h7v7h-7zM10 6.5h4a3 3 0 013 3V14M6.5 10v4a3 3 0 003 3H14" /> },
 ] as const;
@@ -51,6 +52,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [busy, setBusy] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const [deleting, setDeleting] = useState<ChatSummary | null>(null);
 
   const reload = useCallback(async () => {
     const { chats } = await api<{ chats: ChatSummary[] }>("/api/chats");
@@ -78,15 +80,18 @@ export function Shell({ children }: { children: React.ReactNode }) {
     [reload],
   );
 
+  // Asks first; the dialog below does the actual delete.
   const remove = useCallback(
-    async (id: string) => {
-      if (!confirm("Delete this chat?")) return;
-      await api(`/api/chats/${id}`, { method: "DELETE" });
-      await reload();
-      if (new URLSearchParams(window.location.search).get("c") === id) router.replace("/");
-    },
-    [reload, router],
+    async (id: string) => setDeleting(chats.find((c) => c.id === id) ?? null),
+    [chats],
   );
+
+  async function confirmDelete(id: string) {
+    setDeleting(null);
+    await api(`/api/chats/${id}`, { method: "DELETE" });
+    await reload();
+    if (new URLSearchParams(window.location.search).get("c") === id) router.replace("/");
+  }
 
   const value = useMemo(
     () => ({ chats, reload, rename, remove, setBusy, openNav: () => setNavOpen(true) }),
@@ -157,7 +162,76 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
         <main className="flex min-h-0 min-w-0 flex-1 flex-col">{children}</main>
       </div>
+      {deleting && (
+        <ConfirmDialog
+          title="Delete chat?"
+          confirmLabel="Delete"
+          onConfirm={() => confirmDelete(deleting.id)}
+          onCancel={() => setDeleting(null)}
+        >
+          <span className="font-medium text-ink">{deleting.title}</span> will be gone for good.
+        </ConfirmDialog>
+      )}
     </ChatsContext.Provider>
+  );
+}
+
+function ConfirmDialog({
+  title,
+  confirmLabel,
+  onConfirm,
+  onCancel,
+  children,
+}: {
+  title: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+  children: React.ReactNode;
+}) {
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && onCancel();
+    document.addEventListener("keydown", esc);
+    return () => document.removeEventListener("keydown", esc);
+  }, [onCancel]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-deep/50 p-4 backdrop-blur-[2px]" onMouseDown={onCancel}>
+      <div
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="confirm-title"
+        onMouseDown={(e) => e.stopPropagation()}
+        className="w-full max-w-sm rounded-2xl bg-white p-5 text-ink shadow-2xl ring-1 ring-black/5"
+      >
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-foul/10 text-foul">
+            <Icon className="h-5 w-5">{TRASH}</Icon>
+          </span>
+          <div className="min-w-0 pt-0.5">
+            <h2 id="confirm-title" className="font-semibold">
+              {title}
+            </h2>
+            <p className="mt-1 break-words text-sm text-muted">{children}</p>
+          </div>
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            autoFocus
+            onClick={onCancel}
+            className="rounded-xl px-4 py-2 text-sm font-medium text-slate transition hover:bg-floor"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="rounded-xl bg-foul px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-foul/90"
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
