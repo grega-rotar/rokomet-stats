@@ -1,5 +1,11 @@
 import "server-only";
 import { all, one } from "./db";
+import {
+  shotTypeRows, shotTypeWeakSpots, shrunkTypePct, toTotals,
+  type GoalsShots, type ShotTypeKey, type ShotTypeRow, type ShotTypeTotals, type WeakSpot,
+} from "./shot-types";
+
+export type { WeakSpot } from "./shot-types";
 
 // Same rules as scripts/players.py: shooting % is shrunk toward the average by K shots,
 // and a weak spot needs enough attempts to mean anything.
@@ -75,6 +81,39 @@ function playerSeasons(where: string, ...params: unknown[]): PlayerSeason[] {
   );
 }
 
+// player_shot_types tied to player_match (for the position) and matches (for the filters), summed per player.
+function shotTypeTotals(where: string, ...params: unknown[]): Map<number, ShotTypeTotals> {
+  // Until the crawler has run once with the new schema, stats.db has no player_shot_types table.
+  if (!one("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'player_shot_types'")) return new Map();
+  const rows = all<Parameters<typeof toTotals>[0] & { player_id: number }>(
+    `SELECT t.player_id, count(*) AS matches,
+            sum(t.goals_7m) AS goals_7m, sum(t.shots_7m) AS shots_7m, sum(t.goals_6m) AS goals_6m, sum(t.shots_6m) AS shots_6m,
+            sum(t.goals_wing) AS goals_wing, sum(t.shots_wing) AS shots_wing, sum(t.goals_9m) AS goals_9m, sum(t.shots_9m) AS shots_9m,
+            sum(t.misses) AS misses
+     FROM player_shot_types t
+     JOIN player_match p ON p.match_id = t.match_id AND p.side = t.side AND p.player_id = t.player_id
+     JOIN matches m ON m.id = t.match_id
+     WHERE p.is_goalkeeper = 0 ${where}
+     GROUP BY t.player_id`,
+    ...params,
+  );
+  return new Map(rows.map((r) => [r.player_id, toTotals(r)]));
+}
+
+function sumTotals(list: Iterable<ShotTypeTotals>): ShotTypeTotals | null {
+  let out: ShotTypeTotals | null = null;
+  for (const t of list) {
+    out ??= toTotals({ matches: 0, goals_7m: 0, shots_7m: 0, goals_6m: 0, shots_6m: 0, goals_wing: 0, shots_wing: 0, goals_9m: 0, shots_9m: 0, misses: 0 });
+    for (const k of ["7m", "6m", "wing", "9m"] as const) {
+      out[k].goals += t[k].goals;
+      out[k].shots += t[k].shots;
+    }
+    out.misses += t.misses;
+    out.matches += t.matches;
+  }
+  return out;
+}
+
 export function topScorers(competitionId: number, seasonId: number, limit = 10): PlayerSeason[] {
   return playerSeasons("AND m.competition_id = ? AND m.season_id = ?", competitionId, seasonId)
     .sort((a, b) => b.goals - a.goals || a.shots - b.shots)
@@ -90,7 +129,6 @@ export function searchPlayers(q: string, limit = 20): PlayerSeason[] {
 const pct = (g: number, s: number) => (s ? (100 * g) / s : null);
 
 export type Metric = { key: string; label: string; me: number | null; avg: number | null; unit: "%" | ""; better: "high" | "low" };
-export type WeakSpot = { title: string; detail: string };
 export type PlayerProfile = {
   player: PlayerSeason;
   competitions: string[];
@@ -98,6 +136,8 @@ export type PlayerProfile = {
   metrics: Metric[];
   weakSpots: WeakSpot[];
   enoughData: boolean;
+  /** Shot types from the match PDFs (top senior competitions only); null when there is no PDF data. */
+  shotTypes: { rows: ShotTypeRow[]; misses: number; matches: number } | null;
   games: { match_id: number; date: string; opponent: string; goals: number; shots: number; two_min: number; result: string }[];
 };
 
@@ -164,6 +204,21 @@ export function playerProfile(playerId: number, seasonId?: number): PlayerProfil
       detail: `${me.two_min} two-minute suspensions in ${me.matches} matches (${mine.two.toFixed(2)} per match), average ${avg.two.toFixed(2)}.`,
     });
 
+  // Shot types: the player's PDF columns vs all same-position players in the same competitions.
+  const myTypes = shotTypeTotals("AND p.player_id = ?", playerId).get(playerId);
+  let shotTypes: PlayerProfile["shotTypes"] = null;
+  if (myTypes?.matches) {
+    const peerTypes = shotTypeTotals(
+      `AND m.competition_id IN (${comps.map(() => "?").join(",")}) AND p.position = ?`,
+      ...comps.map((c) => c.competition_id), me.position,
+    );
+    const rows = shotTypeRows(myTypes, sumTotals(peerTypes.values()));
+    if (rows.some((r) => r.shots)) {
+      shotTypes = { rows, misses: myTypes.misses, matches: myTypes.matches };
+      weakSpots.push(...shotTypeWeakSpots(rows, me.position));
+    }
+  }
+
   const games = all<PlayerProfile["games"][number]>(
     `SELECT m.id AS match_id, m.date, CASE p.side WHEN 'home' THEN m.away ELSE m.home END AS opponent,
             p.goals, coalesce(p.shots, 0) AS shots, coalesce(p.two_min, 0) AS two_min,
@@ -179,6 +234,7 @@ export function playerProfile(playerId: number, seasonId?: number): PlayerProfil
     metrics,
     weakSpots,
     enoughData: fieldShots >= MIN_SHOTS || me.matches >= 4,
+    shotTypes,
     games,
   };
 }
@@ -224,8 +280,13 @@ export const RANK_METRICS = {
   sevens: "7m conversion",
   gpm: "Goals per match",
   two_min: "2-min suspensions",
+  nine: "9m %",
+  six: "6m %",
+  wing: "Wing %",
 } as const;
 export type RankMetric = keyof typeof RANK_METRICS;
+/** Rank metrics from the PDF shot types, and the shot type they use. */
+export const TYPE_METRICS: Partial<Record<RankMetric, ShotTypeKey>> = { nine: "9m", six: "6m", wing: "wing" };
 
 export function rankings(metric: RankMetric, opts: { seasonId: number; competitionId?: number; position?: string }, limit = 30) {
   let where = "AND m.season_id = ?";
@@ -242,19 +303,31 @@ export function rankings(metric: RankMetric, opts: { seasonId: number; competiti
   const tg = ps.reduce((a, p) => a + p.goals, 0), ts = ps.reduce((a, p) => a + p.shots, 0);
   const g7 = ps.reduce((a, p) => a + p.goals_7m, 0), s7 = ps.reduce((a, p) => a + p.shots_7m, 0);
   const avg = ts ? tg / ts : 0, avg7 = s7 ? g7 / s7 : 0;
+  // PDF shot types: only loaded for the type metrics, averaged over the same filtered players.
+  const typeKey = TYPE_METRICS[metric];
+  const types = typeKey ? shotTypeTotals(where, ...params) : new Map<number, ShotTypeTotals>();
+  const typeSum = typeKey ? sumTotals(types.values())?.[typeKey] : undefined;
+  const avgType = typeSum?.shots ? typeSum.goals / typeSum.shots : 0;
+  const byType = (p: PlayerSeason) => {
+    const t = typeKey && types.get(p.player_id);
+    return t ? shrunkTypePct(t[typeKey], avgType) : null;
+  };
   const score: Record<RankMetric, (p: PlayerSeason) => number | null> = {
     goals: (p) => p.goals,
     shooting: (p) => (p.shots >= MIN_SHOTS ? (p.goals + K * avg) / (p.shots + K) : null),
     sevens: (p) => (p.shots_7m >= 5 ? (p.goals_7m + 5 * avg7) / (p.shots_7m + 5) : null),
     gpm: (p) => (p.matches >= 3 ? p.goals / p.matches : null),
     two_min: (p) => p.two_min,
+    nine: byType,
+    six: byType,
+    wing: byType,
   };
   const rows = ps
-    .map((p) => ({ ...p, score: score[metric](p) }))
-    .filter((p): p is PlayerSeason & { score: number } => p.score !== null)
+    .map((p) => ({ ...p, score: score[metric](p), typed: typeKey ? types.get(p.player_id)?.[typeKey] : undefined }))
+    .filter((p): p is PlayerSeason & { score: number; typed: GoalsShots | undefined } => p.score !== null)
     .sort((a, b) => b.score - a.score)
     .slice(0, limit);
-  return { rows, average: { shooting: avg * 100, sevens: avg7 * 100 } };
+  return { rows, average: { shooting: avg * 100, sevens: avg7 * 100, type: avgType * 100 } };
 }
 
 export function positions(seasonId: number): string[] {
@@ -295,6 +368,7 @@ export function freshness() {
   return one<{ matches: number; latest: string | null; checks_failed: number }>(
     `SELECT (SELECT count(*) FROM matches WHERE status = 1) AS matches,
             (SELECT max(substr(date,7,4)||'-'||substr(date,4,2)||'-'||substr(date,1,2)) FROM matches WHERE status = 1) AS latest,
-            (SELECT count(*) FROM checks WHERE ok = 0 AND name NOT LIKE 'zones_plus_7m%') AS checks_failed`,
+            (SELECT count(*) FROM checks WHERE ok = 0 AND name NOT LIKE 'zones_plus_7m%'
+               AND name NOT IN ('pdf_player_goals_eq_json', 'pdf_shot_types')) AS checks_failed`,
   );
 }

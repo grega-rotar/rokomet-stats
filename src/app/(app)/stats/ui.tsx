@@ -44,16 +44,19 @@ export function Empty({ children }: { children: ReactNode }) {
   return <p className="text-sm text-muted">{children}</p>;
 }
 
-/** A metric as a court line: the bar is the player, the slate tick is the position average. */
-export function MetricBar({ m }: { m: Metric }) {
+/**
+ * A metric as a court line: the bar is the player, the slate tick is the position average.
+ * note: small text after the label (e.g. "11/32"); flag overrides when the value is shown as worse.
+ */
+export function MetricBar({ m, note, flag }: { m: Metric; note?: ReactNode; flag?: boolean }) {
   const max = m.unit === "%" ? 100 : Math.max(m.me ?? 0, m.avg ?? 0) * 1.4 || 1;
   const w = (v: number | null) => `${Math.min(100, ((v ?? 0) / max) * 100)}%`;
-  const worse = m.me !== null && m.avg !== null && (m.better === "high" ? m.me < m.avg : m.me > m.avg);
+  const worse = flag ?? (m.me !== null && m.avg !== null && (m.better === "high" ? m.me < m.avg : m.me > m.avg));
   const fmt = (v: number | null) => (v === null ? "–" : m.unit === "%" ? `${v.toFixed(0)}%` : v.toFixed(m.key === "two" ? 2 : 1));
   return (
     <div>
       <div className="flex items-baseline justify-between text-sm">
-        <span>{m.label}</span>
+        <span>{m.label}{note && <span className="ml-1.5 text-xs text-muted tabular-nums">{note}</span>}</span>
         <span className="tabular-nums">
           <strong className={worse ? "text-foul" : "text-slate"}>{fmt(m.me)}</strong>
           <span className="text-muted"> · avg {fmt(m.avg)}</span>

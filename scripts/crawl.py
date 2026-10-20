@@ -2,7 +2,10 @@
 
 Usage: python3 scripts/crawl.py [SEASON_ID|current] [SHARD/SHARDS]   (pip install pypdf for goal zones)
        Run e.g. 0/3, 1/3, 2/3 in parallel to split the leagues over 3 processes.
-Every match: detail + player stats (JSON). Top senior competitions also get play-by-play and PDF goal zones.
+       python3 scripts/crawl.py --reparse [SEASON_ID]   refill the PDF tables (team_zones, team_shooting,
+       player_shot_types) of loaded matches from the cache only, e.g. after a parser change. No network.
+Every match: detail + player stats (JSON). Top senior competitions also get play-by-play, PDF goal zones
+and PDF shot types per player.
 Match data is cached in STATS_DATA_DIR/cache, so a rerun only fetches what is new; season, league and
 round lists are always fetched fresh. See specs/data-source.md and specs/stats-pipeline.md.
 """
@@ -52,6 +55,9 @@ CREATE TABLE IF NOT EXISTS team_zones (match_id INTEGER, side TEXT, zone TEXT, g
     PRIMARY KEY (match_id, side, zone));
 CREATE TABLE IF NOT EXISTS team_shooting (match_id INTEGER, side TEXT, goals_7m INTEGER, shots_7m INTEGER,
     miss_over INTEGER, miss_left INTEGER, miss_right INTEGER, zone_goals INTEGER, PRIMARY KEY (match_id, side));
+CREATE TABLE IF NOT EXISTS player_shot_types (match_id INTEGER, side TEXT, player_id INTEGER, number INTEGER,
+    name TEXT, goals_7m INTEGER, shots_7m INTEGER, goals_6m INTEGER, shots_6m INTEGER, goals_wing INTEGER,
+    shots_wing INTEGER, goals_9m INTEGER, shots_9m INTEGER, misses INTEGER, PRIMARY KEY (match_id, side, number));
 CREATE TABLE IF NOT EXISTS checks (match_id INTEGER, name TEXT, ok INTEGER, detail TEXT, PRIMARY KEY (match_id, name));
 CREATE TABLE IF NOT EXISTS crawl_progress (key TEXT PRIMARY KEY, season_id INTEGER, season TEXT, shard TEXT,
     leagues_done INTEGER, leagues_total INTEGER, league TEXT, matches_new INTEGER, errors INTEGER, state TEXT,
@@ -61,10 +67,13 @@ CREATE TABLE IF NOT EXISTS crawl_runs (started_at TEXT, finished_at TEXT, season
 """
 
 
+def cache_file(path, form=None):
+    return os.path.join(CACHE, hashlib.sha1((path + json.dumps(form, sort_keys=True)).encode()).hexdigest() + ".gz")
+
+
 def fetch(path, form=None, fresh=False):
     """(content_type, body), cached on disk by path + form. fresh=True refetches and updates the cache."""
-    key = hashlib.sha1((path + json.dumps(form, sort_keys=True)).encode()).hexdigest()
-    fn = os.path.join(CACHE, key + ".gz")
+    fn = cache_file(path, form)
     if os.path.exists(fn) and not fresh:
         with gzip.open(fn, "rb") as f:
             ctype, _, body = f.read().partition(b"\n")
@@ -203,18 +212,39 @@ def load_match(db, m, sid, lid, deep, full_detail):
 
     (ctype, body), err = safe_fetch(f"/natisniStatistikaTekme/{mid}/tekme?&vrstTiskanja=1")
     fetched(db, mid, "pdf", err)
-    if err or "pdf" not in (ctype or ""):
-        check(db, mid, "pdf", False, err or "no pdf")
+    if err:
+        check(db, mid, "pdf", False, err)
         return
+    load_pdf(db, mid, ctype, body, score)
+
+
+def norm(name):
+    return " ".join((name or "").lower().split())
+
+
+def load_pdf(db, mid, ctype, body, score):
+    """Goal zones (parse_zones) and per-player shot types (parse_players) from the match stats PDF."""
+    if "pdf" not in ctype:
+        check(db, mid, "pdf", False, "no pdf")
+        return
+    import parse_players
+    import parse_zones
+    path = os.path.join(DATA, f"tmp_{os.getpid()}.pdf")
+    with open(path, "wb") as f:
+        f.write(body)
     try:
-        import parse_zones
-        path = os.path.join(DATA, f"tmp_{os.getpid()}.pdf")
-        with open(path, "wb") as f:
-            f.write(body)
-        z = parse_zones.parse(path)
-    except Exception as ex:
-        check(db, mid, "pdf", False, f"{type(ex).__name__}: {ex}")
-        return
+        try:
+            z = parse_zones.parse(path)
+        except Exception as ex:
+            check(db, mid, "pdf", False, f"{type(ex).__name__}: {ex}")
+            return
+        try:
+            pl = parse_players.parse(path)
+        except Exception as ex:
+            pl = None
+            check(db, mid, "pdf_players", False, f"{type(ex).__name__}: {ex}")
+    finally:
+        os.remove(path)
     check(db, mid, "pdf_score_eq_score", z["score"] == score, f"{z['score']} vs {score}")
     for i, side in enumerate(("home", "away")):
         zg = 0
@@ -225,6 +255,70 @@ def load_match(db, m, sid, lid, deep, full_detail):
         db.execute("INSERT OR REPLACE INTO team_shooting VALUES (?,?,?,?,?,?,?,?)",
                    (mid, side, sv["goals"], sv["shots"], mi["over"], mi["left"], mi["right"], zg))
         check(db, mid, f"zones_plus_7m_eq_score_{side}", zg + sv["goals"] == score[i], f"{zg}+{sv['goals']} vs {score[i]}")
+    if pl:
+        load_shot_types(db, mid, pl, score)
+
+
+TYPES = ("7m", "6m", "wing", "9m")
+
+
+def load_shot_types(db, mid, pl, score):
+    """PDF player rows -> player_shot_types, tied to player_match by side + shirt number (fallback: name;
+    goalkeepers by name from goalkeeper_match). Only the split by type and the misses are used; goals and
+    shots stay with the JSON (player_match). A team's rows are kept only when its typed PDF goals are within
+    max(2, 10%) of its score: some clubs log only 7m, or only part of the match, in the livestat app."""
+    db.execute("DELETE FROM player_shot_types WHERE match_id = ?", (mid,))
+    same = total = 0
+    kept = []
+    for i, side in enumerate(("home", "away")):
+        js = db.execute("SELECT player_id, number, first_name || ' ' || last_name, goals FROM player_match "
+                        "WHERE match_id = ? AND side = ?", (mid, side)).fetchall()
+        by_no = {str(n).strip(): (pid, g) for pid, n, _, g in js if n is not None}
+        by_name = {}
+        for pid, _, name, g in js:
+            first, _, last = norm(name).partition(" ")
+            by_name[norm(name)] = by_name[f"{last} {first}"] = (pid, g)
+        keepers = {norm(n): pid for pid, n in db.execute(
+            "SELECT player_id, name FROM goalkeeper_match WHERE match_id = ? AND side = ?", (mid, side))}
+        players = pl[side]["players"]
+        typed = sum((p.get(k) or {}).get("goals", 0) for p in players for k in TYPES)
+        ok = abs(typed - score[i]) <= max(2, 0.1 * score[i])
+        kept.append(f"{side} {'kept' if ok else 'skipped'} ({typed} typed goals vs {score[i]})")
+        for p in players:
+            hit = by_no.get(str(p["number"])) or by_name.get(norm(p["name"]))
+            if hit:  # the goal check covers field players only: goalkeepers aren't in player_match
+                total += 1
+                same += (p.get("goals") or 0) == (hit[1] or 0)
+            if not ok:
+                continue
+            pid = hit[0] if hit else keepers.get(norm(p["name"]))
+            types = [(p.get(k) or {}).get(made, 0) for k in TYPES for made in ("goals", "shots")]
+            db.execute("INSERT OR REPLACE INTO player_shot_types VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                       (mid, side, pid, p["number"], p["name"], *types, p.get("misses", 0)))
+    check(db, mid, "pdf_player_goals_eq_json", total and same >= 0.9 * total,
+          f"{same}/{total} field players ({100 * same / max(1, total):.0f}%)")
+    check(db, mid, "pdf_shot_types", all("kept" in k for k in kept), ", ".join(kept))
+
+
+def reparse(season_id=None):
+    """Refill the PDF tables of already-loaded deep matches from the cache (no network)."""
+    db = sqlite3.connect(os.path.join(DATA, "stats.db"), timeout=120)
+    db.execute("PRAGMA journal_mode = WAL")
+    db.executescript(SCHEMA)
+    rows = db.execute("SELECT id, home_goals, away_goals FROM matches WHERE status = 1 AND id IN "
+                      "(SELECT match_id FROM checks WHERE name IN ('pdf', 'pdf_score_eq_score'))"
+                      + (" AND season_id = ?" if season_id else ""), (season_id,) if season_id else ()).fetchall()
+    done = missing = 0
+    for mid, hg, ag in rows:
+        url = f"/natisniStatistikaTekme/{mid}/tekme?&vrstTiskanja=1"
+        if not os.path.exists(cache_file(url)):
+            missing += 1
+            continue
+        ctype, body = fetch(url)
+        load_pdf(db, mid, ctype, body, [hg, ag])
+        db.commit()
+        done += 1
+    print(f"reparsed {done} matches, {missing} without a cached PDF", flush=True)
 
 
 def migrate(db):
@@ -244,6 +338,8 @@ def needs_load(db, mid):
 
 def main():
     arg = sys.argv[1] if len(sys.argv) > 1 else "current"
+    if arg == "--reparse":
+        return reparse(int(sys.argv[2]) if len(sys.argv) > 2 else None)
     os.makedirs(CACHE, exist_ok=True)
     if arg == "--list-seasons":  # for crawler-loop.sh: every season id, newest first
         print(" ".join(str(s["id"]) for s in api("/seasons", fresh=True)))
