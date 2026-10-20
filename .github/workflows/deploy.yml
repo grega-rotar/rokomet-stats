@@ -66,18 +66,33 @@ jobs:
       TAG: ${{ inputs.tag || github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Two merges close together: the older run can get the deploy slot last and roll main back.
+      # So a push deploys only if it is still the newest main (a manual `tag` rollback always deploys).
+      - name: Still the newest main?
+        id: newest
+        if: ${{ !inputs.tag }}
+        run: |
+          head=$(git ls-remote origin refs/heads/main | cut -f1)
+          if [ "$head" != "$GITHUB_SHA" ]; then
+            echo "::notice::main is at $head now, skipping the deploy of $GITHUB_SHA"
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+          fi
       - name: SSH key
+        if: steps.newest.outputs.stale != 'true'
         run: |
           install -m 700 -d ~/.ssh
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
           echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_ed25519
       - name: Copy compose.yml and Caddyfile
+        if: steps.newest.outputs.stale != 'true'
         run: scp infra/compose.yml infra/Caddyfile deploy@${{ secrets.DEPLOY_HOST }}:/srv/rokomet-stats/
       - name: Pull and restart
+        if: steps.newest.outputs.stale != 'true'
         run: |
           ssh deploy@${{ secrets.DEPLOY_HOST }} "cd /srv/rokomet-stats && export IMAGE_TAG=$TAG && docker compose pull app && docker compose up -d && docker image prune -af"
       - name: Wait for /api/health
+        if: steps.newest.outputs.stale != 'true'
         run: |
           for i in $(seq 1 30); do
             if curl -fsS --max-time 5 "$HEALTH_URL"; then exit 0; fi

@@ -1,7 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
 
-const PUBLIC = ["/login", "/api/login", "/api/health"];
+// icon.svg: the favicon, so the login page has one too.
+const PUBLIC = ["/login", "/api/login", "/api/health", "/icon.svg"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
