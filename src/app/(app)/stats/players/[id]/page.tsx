@@ -1,3 +1,4 @@
+import { positionLabel } from "@/lib/stats/groups";
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -21,7 +22,7 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/s
   return (
     <>
       <PageTitle
-        eyebrow={p.position}
+        eyebrow={positionLabel(p.position)}
         title={p.name}
         sub={<><TeamLink id={p.team_id} name={p.team} /> · {prof.competitions.join(", ")}</>}
         action={<FollowButton kind="player" refId={id} label={p.name} />}
@@ -113,7 +114,7 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/s
           <ul className="divide-y divide-line text-sm">
             {similar.map((s) => (
               <li key={s.player_id} className="flex flex-wrap items-baseline justify-between gap-x-3 py-1.5">
-                <span><PlayerLink id={s.player_id} name={s.name} /> <span className="text-muted">· {s.position} · {s.team}</span></span>
+                <span><PlayerLink id={s.player_id} name={s.name} /> <span className="text-muted">· {positionLabel(s.position)} · {s.team}</span></span>
                 <span className="tabular-nums text-muted">{s.goals}/{s.shots} in {s.matches} · 7m {s.goals_7m}/{s.shots_7m}</span>
               </li>
             ))}

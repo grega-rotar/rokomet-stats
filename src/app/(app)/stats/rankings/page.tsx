@@ -1,6 +1,10 @@
 import { connection } from "next/server";
 import { competitions, K, MIN_SHOTS, positions, RANK_METRICS, rankings, seasons, type RankMetric } from "@/lib/stats/queries";
-import { Card, Empty, PageTitle, PlayerLink } from "../ui";
+import { competitionGroup, describeCompetition, positionLabel, shortName, teamName } from "@/lib/stats/groups";
+import { ParamSelect, type Option } from "../select";
+import { Card, Empty, PageTitle, PlayerLink, ShowMore } from "../ui";
+
+const STEP = 30;
 
 const NOTES: Record<RankMetric, string> = {
   goals: "Total goals, 7m included.",
@@ -8,6 +12,14 @@ const NOTES: Record<RankMetric, string> = {
   sevens: "Players with 5+ penalties, pulled toward the average by 5 attempts.",
   gpm: "Players with 3+ matches.",
   two_min: "Most two-minute suspensions.",
+};
+
+const HINTS: Record<RankMetric, string> = {
+  goals: "Total goals, 7m included",
+  shooting: `Goals per shot, ${MIN_SHOTS}+ shots`,
+  sevens: "7m penalties scored, 5+ taken",
+  gpm: "Average per match, 3+ matches",
+  two_min: "Most two-minute suspensions",
 };
 
 export default async function RankingsPage({ searchParams }: PageProps<"/stats/rankings">) {
@@ -20,28 +32,40 @@ export default async function RankingsPage({ searchParams }: PageProps<"/stats/r
   const comps = competitions(seasonId);
   const compId = Number(sp.comp) || undefined;
   const position = typeof sp.position === "string" && sp.position ? sp.position : undefined;
-  const { rows, average } = rankings(metric, { seasonId, competitionId: compId, position });
+  const shown = Math.max(STEP, Number(sp.show) || STEP);
+  // One extra row says whether "Show more" has anything left.
+  const { rows: ranked, average } = rankings(metric, { seasonId, competitionId: compId, position }, shown + 1);
+  const rows = ranked.slice(0, shown);
+  const more = new URLSearchParams(
+    Object.entries({ season: String(seasonId), metric, comp: compId ? String(compId) : "", position: position ?? "", show: String(shown + STEP) }).filter(([, v]) => v),
+  );
+  const select = {
+    path: "/stats/rankings",
+    params: { season: String(seasonId), metric, comp: compId ? String(compId) : undefined, position },
+  };
+  const metricOptions: Option[] = (Object.keys(RANK_METRICS) as RankMetric[]).map((k) => ({ value: k, label: RANK_METRICS[k], hint: HINTS[k] }));
+  const compOptions: Option[] = [
+    { value: "", label: "All competitions", hint: "Every league and cup this season" },
+    ...[...comps]
+      .sort((a, b) => competitionGroup(a.name).order - competitionGroup(b.name).order || a.name.localeCompare(b.name, "sl", { numeric: true }))
+      .map((c) => ({ value: String(c.id), label: shortName(c.name), hint: describeCompetition(c.name), group: competitionGroup(c.name).label })),
+  ];
+  const positionOptions: Option[] = [
+    { value: "", label: "All positions" },
+    ...positions(seasonId).map((p) => ({ value: p, label: positionLabel(p), hint: p })),
+  ];
   const show = (r: (typeof rows)[number]) =>
     metric === "shooting" ? `${(r.score * 100).toFixed(0)}%` : metric === "sevens" ? `${(r.score * 100).toFixed(0)}%` : metric === "gpm" ? r.score.toFixed(1) : r.score;
 
   return (
     <>
       <PageTitle eyebrow={`Season ${allSeasons.find((s) => s.id === seasonId)?.name ?? ""}`} title="Rankings" />
-      <form action="/stats/rankings" className="mb-6 grid gap-2 sm:grid-cols-[1fr_1fr_1fr_auto]">
-        <input type="hidden" name="season" value={seasonId} />
-        <select name="metric" defaultValue={metric} aria-label="Rank by" className="rounded-xl border border-line bg-white px-3 py-2 text-sm shadow-sm">
-          {Object.entries(RANK_METRICS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-        </select>
-        <select name="comp" defaultValue={compId ?? ""} aria-label="Competition" className="rounded-xl border border-line bg-white px-3 py-2 text-sm shadow-sm">
-          <option value="">All competitions</option>
-          {comps.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-        <select name="position" defaultValue={position ?? ""} aria-label="Position" className="rounded-xl border border-line bg-white px-3 py-2 text-sm shadow-sm">
-          <option value="">All positions</option>
-          {positions(seasonId).map((p) => <option key={p} value={p}>{p}</option>)}
-        </select>
-        <button className="bg-sky rounded-xl px-4 py-2 text-sm font-semibold shadow-sm text-white hover:bg-sky-dark">Rank</button>
-      </form>
+      <div className="mb-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-[minmax(0,0.7fr)_1fr_1.4fr_1fr]">
+        <ParamSelect {...select} param="season" reset={["comp"]} label="Season" value={String(seasonId)} options={allSeasons.map((x) => ({ value: String(x.id), label: x.name }))} />
+        <ParamSelect {...select} param="metric" label="Rank by" value={metric} options={metricOptions} />
+        <ParamSelect {...select} param="comp" label="Competition" value={compId ? String(compId) : ""} options={compOptions} searchable />
+        <ParamSelect {...select} param="position" label="Position" value={position ?? ""} options={positionOptions} />
+      </div>
 
       <Card
         title={RANK_METRICS[metric]}
@@ -62,8 +86,8 @@ export default async function RankingsPage({ searchParams }: PageProps<"/stats/r
                 {rows.map((r, i) => (
                   <tr key={r.player_id} className="border-t border-line">
                     <td className="py-1.5 pr-2 text-muted">{i + 1}</td>
-                    <td><PlayerLink id={r.player_id} name={r.name} /> <span className="text-xs text-muted">{r.position}</span></td>
-                    <td className="text-muted max-sm:hidden">{r.team}</td>
+                    <td><PlayerLink id={r.player_id} name={r.name} /> <span className="text-xs text-muted">{positionLabel(r.position)}</span></td>
+                    <td className="text-muted max-sm:hidden">{teamName(r.team)}</td>
                     <td className="px-2 text-right max-sm:hidden">{r.matches}</td>
                     <td className="px-2 text-right">{r.goals}/{r.shots}</td>
                     <td className="px-2 text-right max-sm:hidden">{r.goals_7m}/{r.shots_7m}</td>
@@ -73,7 +97,9 @@ export default async function RankingsPage({ searchParams }: PageProps<"/stats/r
               </tbody>
             </table>
           </div>
-        ) : (
+        ) : null}
+        {ranked.length > shown && <ShowMore href={`/stats/rankings?${more}`}>Show {STEP} more players</ShowMore>}
+        {rows.length ? null : (
           <Empty>No players meet the minimum for this ranking yet. Try all competitions or another position.</Empty>
         )}
       </Card>

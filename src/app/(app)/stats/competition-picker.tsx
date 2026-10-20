@@ -4,7 +4,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { fold } from "@/lib/stats/groups";
+import { describeCompetition, fold } from "@/lib/stats/groups";
+import { Select } from "./select";
+import { Facts, type Fact } from "./ui";
 
 export type PickerCompetition = {
   id: number;
@@ -21,11 +23,15 @@ export function CompetitionPicker({
   seasons,
   seasonId,
   compId,
+  description,
+  facts = [],
 }: {
   competitions: PickerCompetition[];
   seasons: { id: number; name: string }[];
   seasonId: number;
   compId?: number;
+  description?: string;
+  facts?: Fact[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -38,7 +44,7 @@ export function CompetitionPicker({
   const filtered = useMemo(() => {
     const q = fold(query.trim());
     return competitions
-      .filter((c) => !q || fold(`${c.name} ${c.group.label}`).includes(q))
+      .filter((c) => !q || fold(`${c.name} ${c.group.label} ${describeCompetition(c.name)}`).includes(q))
       .sort(
         (a, b) =>
           a.group.order - b.group.order ||
@@ -70,6 +76,7 @@ export function CompetitionPicker({
   }
 
   function onKey(e: React.KeyboardEvent) {
+    if (!open) return; // keys in the season dropdown bubble up here too
     if (e.key === "Escape") setOpen(false);
     else if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -86,42 +93,41 @@ export function CompetitionPicker({
 
   return (
     <div ref={rootRef} className="relative mb-6" onKeyDown={onKey}>
-      <div className="flex flex-wrap items-stretch gap-2">
-        <button
-          type="button"
-          onClick={toggle}
-          aria-expanded={open}
-          aria-haspopup="dialog"
-          className={`flex min-w-0 flex-1 items-center gap-3 rounded-xl bg-white px-4 py-2.5 text-left shadow-sm ring-1 transition sm:flex-none ${
-            open ? "ring-2 ring-sky" : "ring-line hover:ring-sky/50"
-          }`}
-        >
-          <span className="min-w-0">
-            <span className="block text-xs font-semibold text-sky-dark">{current?.group.label ?? "Competition"}</span>
-            <span className="block truncate font-semibold text-slate">{current?.short ?? "Choose a competition"}</span>
-          </span>
-          <svg viewBox="0 0 24 24" className={`ml-auto h-4 w-4 shrink-0 text-muted transition ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M6 9l6 6 6-6" />
-          </svg>
-        </button>
-        <label className="relative">
-          <span className="sr-only">Season</span>
-          <select
-            value={seasonId}
-            onChange={(e) => router.push(`/stats?season=${e.target.value}`)}
-            className="no-ring h-full appearance-none rounded-xl bg-white py-3 pl-4 pr-9 text-sm font-semibold text-slate shadow-sm ring-1 ring-line outline-none transition hover:ring-sky/50 focus:ring-2 focus:ring-sky"
-          >
-            {seasons.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-          <svg viewBox="0 0 24 24" className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <path d="M6 9l6 6 6-6" />
-          </svg>
-        </label>
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-sky-dark">{current?.group.label ?? "Competitions"}</div>
+          {/* The title is the picker: click it to choose another competition. */}
+          <h1 className="-mx-2">
+            <button
+              type="button"
+              onClick={toggle}
+              aria-expanded={open}
+              aria-haspopup="dialog"
+              className={`group flex max-w-full items-center gap-2.5 rounded-xl px-2 py-0.5 text-left transition ${
+                open ? "bg-white shadow-sm ring-2 ring-sky" : "hover:bg-white hover:shadow-sm hover:ring-1 hover:ring-line"
+              }`}
+            >
+              <span className="truncate font-display text-2xl font-bold tracking-tight text-slate md:text-3xl">
+                {current?.short ?? "Choose a competition"}
+              </span>
+              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-white text-slate shadow-sm ring-1 transition ${open ? "ring-sky" : "ring-line group-hover:ring-sky/50"}`}>
+                <svg viewBox="0 0 24 24" className={`h-4 w-4 transition ${open ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </span>
+            </button>
+          </h1>
+          {description && <div className="mt-1 text-muted">{description}</div>}
+        </div>
+        <Select
+          label="Season"
+          value={String(seasonId)}
+          options={seasons.map((x) => ({ value: String(x.id), label: x.name }))}
+          onChange={(v) => router.push(`/stats?season=${v}`, { scroll: false })}
+          className="w-40"
+        />
       </div>
+      <Facts items={facts} />
 
       {open && (
         <div role="dialog" aria-label="Choose a competition" className="absolute inset-x-0 top-full z-30 mt-2 rounded-2xl bg-white shadow-2xl ring-1 ring-black/5">
@@ -138,7 +144,7 @@ export function CompetitionPicker({
                   setQuery(e.target.value);
                   setActive(0);
                 }}
-                placeholder="Filter, e.g. M17, pokal, ženske"
+                placeholder="Filter, e.g. U17, cup, ženske, east"
                 aria-label="Filter competitions"
                 className="no-ring min-w-0 flex-1 bg-transparent py-2.5 text-sm outline-none"
               />
@@ -161,12 +167,13 @@ export function CompetitionPicker({
                             href={href(c.id)}
                             onClick={() => setOpen(false)}
                             onMouseEnter={() => setActive(index)}
-                            className={`flex items-baseline gap-2 rounded-lg px-2 py-1.5 text-sm transition ${
-                              index === active ? "bg-floor" : ""
-                            } ${selected ? "font-semibold text-sky-dark" : "text-ink"}`}
+                            className={`flex items-baseline gap-2 rounded-lg px-2 py-1.5 transition ${index === active ? "bg-floor" : ""}`}
                           >
-                            <span className="min-w-0 flex-1">{c.short}</span>
-                            <span className="shrink-0 text-xs text-muted tabular-nums">{c.matches}</span>
+                            <span className="min-w-0 flex-1">
+                              <span className={`block text-sm ${selected ? "font-semibold text-sky-dark" : "text-ink"}`}>{c.short}</span>
+                              <span className="block text-xs text-muted">{describeCompetition(c.name)}</span>
+                            </span>
+                            <span className="shrink-0 text-xs text-muted tabular-nums" title="Matches played">{c.matches}</span>
                           </Link>
                         </li>
                       );
