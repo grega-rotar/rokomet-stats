@@ -76,7 +76,7 @@ jobs:
         run: scp infra/compose.yml infra/Caddyfile deploy@${{ secrets.DEPLOY_HOST }}:/srv/rokomet-stats/
       - name: Pull and restart
         run: |
-          ssh deploy@${{ secrets.DEPLOY_HOST }} "cd /srv/rokomet-stats && export IMAGE_TAG=$TAG && docker compose pull app && docker compose up -d"
+          ssh deploy@${{ secrets.DEPLOY_HOST }} "cd /srv/rokomet-stats && export IMAGE_TAG=$TAG && docker compose pull app && docker compose up -d && docker image prune -af"
       - name: Wait for /api/health
         run: |
           for i in $(seq 1 30); do
