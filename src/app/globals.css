@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
-/* Colours from the RZS livestat site (livestat.rokometna-zveza.si), so the app sits next to it. */
+/* RZS livestat colours (livestat.rokometna-zveza.si) in a modern, rounded layout. */
 @theme {
   --color-court: #94c11e;
   --color-slate: #2c3e50;
-  --color-slate-deep: #22313f;
+  --color-slate-deep: #1e2b38;
   --color-sky: #36a9e0;
   --color-sky-dark: #1f8fc6;
-  --color-floor: #edeff4;
-  --color-line: #e4e7ed;
+  --color-floor: #f3f5f8;
+  --color-line: #e3e7ed;
   --color-ink: #1f2a36;
-  --color-muted: #8a9099;
+  --color-muted: #7d8794;
   --color-foul: #d64545;
   --font-display: var(--font-montserrat), system-ui, sans-serif;
   --font-sans: var(--font-source-sans), system-ui, sans-serif;
@@ -22,36 +22,29 @@ body {
   font-family: var(--font-sans);
 }
 
-/* The slanted panel from the RZS header: skew the box, un-skew the text inside. */
-.skew-panel {
-  transform: skewX(-14deg);
-}
-.skew-panel > * {
-  display: inline-block;
-  transform: skewX(14deg);
-}
-
-:focus-visible {
+/* .no-ring: fields whose container already shows focus (the composer, the rename box). */
+:focus-visible:not(.no-ring) {
   outline: 2px solid var(--color-sky);
   outline-offset: 2px;
+}
+.no-ring:focus-visible {
+  outline: none;
 }
 
 /* Claude's answers are Markdown: stats come back as tables, lists and bold numbers. */
 .answer {
-  line-height: 1.6;
+  line-height: 1.65;
   overflow-wrap: anywhere;
 }
 .answer > * + * {
-  margin-top: 0.75em;
+  margin-top: 0.8em;
 }
 .answer h1,
 .answer h2,
 .answer h3 {
   font-family: var(--font-display);
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  font-size: 0.85rem;
+  font-size: 1rem;
   color: var(--color-slate);
   margin-top: 1.25em;
 }
@@ -63,9 +56,13 @@ body {
   list-style: decimal;
   padding-left: 1.25em;
 }
+.answer li + li {
+  margin-top: 0.25em;
+}
 .answer a {
   color: var(--color-sky-dark);
   text-decoration: underline;
+  text-underline-offset: 2px;
 }
 .answer strong {
   font-weight: 700;
@@ -74,13 +71,14 @@ body {
 .answer code {
   font-size: 0.875em;
   background: var(--color-floor);
-  padding: 0.1em 0.35em;
-  border-radius: 2px;
+  padding: 0.1em 0.4em;
+  border-radius: 6px;
 }
 .answer pre {
   background: var(--color-slate-deep);
   color: #e8edf2;
-  padding: 0.75rem 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
   overflow-x: auto;
   font-size: 0.85rem;
 }
@@ -91,6 +89,7 @@ body {
 .answer .table-wrap {
   overflow-x: auto;
   border: 1px solid var(--color-line);
+  border-radius: 12px;
 }
 .answer table {
   width: 100%;
@@ -99,26 +98,25 @@ body {
   font-size: 0.9rem;
 }
 .answer th {
-  background: var(--color-slate);
-  color: #fff;
+  background: var(--color-floor);
+  color: var(--color-slate);
   font-family: var(--font-display);
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   text-align: left;
-  padding: 0.5rem 0.75rem;
+  padding: 0.6rem 0.85rem;
   white-space: nowrap;
 }
 /* Cells stay on one line; on a phone the table scrolls sideways inside .table-wrap. */
 .answer td {
   overflow-wrap: normal;
   white-space: nowrap;
-  padding: 0.45rem 0.75rem;
+  padding: 0.55rem 0.85rem;
   border-top: 1px solid var(--color-line);
 }
-.answer tbody tr:nth-child(even) {
-  background: #f6f7fa;
+.answer tbody tr:hover {
+  background: #f8fafc;
 }
 
 @keyframes live-pulse {
@@ -127,14 +125,36 @@ body {
     opacity: 1;
   }
   50% {
-    opacity: 0.25;
+    opacity: 0.3;
   }
 }
 .live-dot {
   animation: live-pulse 1.2s ease-in-out infinite;
 }
+@keyframes typing {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  40% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+.typing span {
+  animation: typing 1.2s ease-in-out infinite;
+}
+.typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
 @media (prefers-reduced-motion: reduce) {
-  .live-dot {
+  .live-dot,
+  .typing span {
     animation: none;
   }
 }

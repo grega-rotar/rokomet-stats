@@ -1,12 +1,21 @@
-// Two slanted panels in the RZS colours, like the angled logo plate on livestat.rokometna-zveza.si.
-export function Wordmark() {
+// A handball (circle with two seams) in a rounded RZS-blue tile, then the name.
+export function BallIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
-    <span className="inline-flex font-display text-base font-extrabold uppercase tracking-wide">
-      <span className="skew-panel bg-sky px-4 py-1.5 text-white">
-        <span>Rokomet</span>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={className} aria-hidden>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M6.5 4.8c3.4 2.4 7.6 2.4 11 0M3.6 9.5c4.4.2 7.4 3.7 7.9 11.4M20.4 9.5c-4.4.2-7.4 3.7-7.9 11.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function Wordmark({ dark = false }: { dark?: boolean }) {
+  return (
+    <span className="inline-flex items-center gap-2.5">
+      <span className="grid h-9 w-9 place-items-center rounded-xl bg-sky text-white shadow-sm">
+        <BallIcon />
       </span>
-      <span className="skew-panel bg-court px-3 py-1.5 text-slate-deep">
-        <span>Stats</span>
+      <span className={`font-display text-[0.95rem] font-bold leading-none ${dark ? "text-white" : "text-slate"}`}>
+        Rokomet <span className="text-court">stats</span>
       </span>
     </span>
   );
