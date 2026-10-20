@@ -29,6 +29,7 @@ export function useChats() {
 const PAGES = [
   { href: "/stats", label: "Stats", exact: true, icon: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /> },
   { href: "/stats/rankings", label: "Rankings", exact: false, icon: <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 01-10 0V4zM17 6h3v2a3 3 0 01-3 3M7 6H4v2a3 3 0 003 3" /> },
+  { href: "/stats/alerts", label: "Alerts", exact: false, icon: <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0" /> },
   { href: "/stats/crawl", label: "Crawler", exact: false, icon: <path d="M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3M18 3v4h-4M6 21v-4h4" /> },
 ] as const;
 
