@@ -7,6 +7,7 @@ Specs live in [`specs/`](specs/README.md). Read the relevant one before working 
 - Goal-zone PDF parser: [`scripts/parse_zones.py`](scripts/parse_zones.py)
 - Data survey (counts + spot checks): [`scripts/survey.py`](scripts/survey.py)
 - Failed-check review (rules first, then Claude on the PDF picture) and weekly audit: [`scripts/review.py`](scripts/review.py); results on `/stats/data`
+- Team Elo and clubs near you: [`src/lib/stats/elo.ts`](src/lib/stats/elo.ts) (twin: [`scripts/teams.py`](scripts/teams.py)), [`scripts/clubs.py`](scripts/clubs.py); postcode data licence in [`specs/stats-pipeline.md`](specs/stats-pipeline.md)
 - Stats UI: `src/app/stats/`, queries in `src/lib/stats/`; diagrams in [`docs/diagrams/`](docs/diagrams/README.md)
 - Chat Claude's instructions on the server: [`scripts/chat-CLAUDE.md`](scripts/chat-CLAUDE.md) (copied to `/data/work/CLAUDE.md` by the crawler)
 
@@ -17,6 +18,7 @@ The data is in `data/stats.db` locally (SQLite, filled by `python3 scripts/crawl
 Tables: `seasons`, `competitions` (id, season_id, name, category top/senior/youth), `matches` (scores, half-time, hall, attendance, referees, coaches), `player_match` (one row per player per match: goals, shots, 7m, yellow, red, two_min, position; `raw` has the API row), `goalkeeper_match` (`raw` JSON: obrambe = saves, steviloMetov = shots faced, sedemVsi/sedemObrambe = 7m faced/saved), `events` (play-by-play: minute, side, type, value 1 goal / 0 saved / -1 missed, player), `team_zones` (goal zones per team per match, shooter's view), `team_shooting` (7m, misses around goal), `checks` (per-match cross-checks), `reviews` (why a check failed: rule or AI text), `audits` (weekly PDF read-back vs stored numbers), `crawl_runs`.
 
 Player tools: `python3 scripts/players.py find NAME | profile ID | similar ID | rank METRIC [POSITION] [COMPETITION]`.
+Team tools: `python3 scripts/teams.py elo [COMPETITION] | predict HOME_ID AWAY_ID | validate | near TOWN_OR_POSTCODE`. Elo rules: [`specs/stats-pipeline.md`](specs/stats-pipeline.md) ("Team Elo"); TS twin `src/lib/stats/elo.ts`. Clubs and coordinates: `python3 scripts/clubs.py` (tables `clubs`, `team_clubs`, `postcodes`).
 
 Rules:
 - Every number you state comes from a query or a tool output. Show the numbers you used (e.g. "8/10 from 9m"). Never invent stats.
