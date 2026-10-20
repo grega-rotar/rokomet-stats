@@ -55,7 +55,7 @@ export default function Court3D(props: Court3DProps) {
         flat
         dpr={[1, 2]}
         frameloop={playing ? "always" : "demand"}
-        camera={{ fov: FOV, near: 0.1, far: 200, position: [4, 14, 30] }}
+        camera={{ fov: FOV, near: 0.5, far: 200, position: [4, 14, 30] }}
         gl={{ antialias: true, powerPreference: "low-power" }}
         onCreated={() => onReady?.()}
         onPointerMissed={() => setPicked(null)}
@@ -101,28 +101,32 @@ const COURT_W = 20;
 const SIX = arcLine(6).map((p) => w(p));
 const NINE = arcLine(9).map((p) => w(p));
 
+// Floor layers sit millimetres apart, which z-fights (flickers) while the camera moves. They don't write depth and
+// draw first in this fixed order instead; everything standing on the floor still hides them normally.
+const FLOOR = { hall: -4, runoff: -3, court: -2, area: -1 };
+
 function Floor() {
   const seg = courtSegments();
   const [court, area, runoff] = floorTextures();
   return (
     <group>
       {/* run-off around the court, fading into the hall */}
-      <mesh rotation-x={-Math.PI / 2} position={[0, -0.01, 10]}>
+      <mesh rotation-x={-Math.PI / 2} position={[0, -0.01, 10]} renderOrder={FLOOR.runoff}>
         <planeGeometry args={[40, 40]} />
-        <meshStandardMaterial color={COLORS.runoff} map={runoff} roughness={0.85} />
+        <meshStandardMaterial color={COLORS.runoff} map={runoff} roughness={0.85} depthWrite={false} />
       </mesh>
-      <mesh rotation-x={-Math.PI / 2} position={[0, -0.02, 10]}>
+      <mesh rotation-x={-Math.PI / 2} position={[0, -0.02, 10]} renderOrder={FLOOR.hall}>
         <planeGeometry args={[200, 200]} />
-        <meshBasicMaterial color={COLORS.hall} />
+        <meshBasicMaterial color={COLORS.hall} depthWrite={false} />
       </mesh>
       {/* playing surface: 20 x 20 m half court */}
-      <mesh rotation-x={-Math.PI / 2} position={[0, 0, 10]}>
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0, 10]} renderOrder={FLOOR.court}>
         <planeGeometry args={[COURT_W, COURT_W]} />
-        <meshStandardMaterial color={COLORS.surface} map={court} roughness={0.7} />
+        <meshStandardMaterial color={COLORS.surface} map={court} roughness={0.7} depthWrite={false} />
       </mesh>
-      <mesh rotation-x={-Math.PI / 2} position={[0, 0.004, 0]}>
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0.004, 0]} renderOrder={FLOOR.area}>
         <shapeGeometry args={[GOAL_AREA, 48]} />
-        <meshStandardMaterial color={COLORS.goalArea} map={area} roughness={0.7} />
+        <meshStandardMaterial color={COLORS.goalArea} map={area} roughness={0.7} depthWrite={false} />
       </mesh>
       <Line points={[w(seg.goalLine[0]), w(seg.goalLine[1])]} color={COLORS.courtLine} lineWidth={2.4} />
       <Line points={[w(seg.centre[0]), w(seg.centre[1])]} color={COLORS.courtLine} lineWidth={2.2} />
