@@ -8,6 +8,7 @@ import "./stats.css";
 const NAV = [
   { href: "/stats", label: "Overview" },
   { href: "/stats/rankings", label: "Rankings" },
+  { href: "/stats/crawl", label: "Crawler" },
   { href: "/", label: "Chat" },
 ] as const;
 
