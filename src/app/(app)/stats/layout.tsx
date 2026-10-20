@@ -1,6 +1,7 @@
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { MenuButton } from "../../shell";
+import { SearchBox } from "./search-box";
 import { freshness } from "@/lib/stats/queries";
 import "./stats.css";
 
@@ -23,9 +24,12 @@ function Loading() {
 export default function StatsLayout({ children }: LayoutProps<"/stats">) {
   return (
     <>
-      <header className="flex h-14 shrink-0 items-center gap-2 border-b border-line bg-white/80 px-3 backdrop-blur md:px-6">
+      <header className="relative z-20 flex h-14 shrink-0 items-center gap-2 border-b border-line bg-white/80 px-3 backdrop-blur md:px-6">
         <MenuButton />
-        <h1 className="min-w-0 flex-1 truncate font-display text-[0.95rem] font-semibold text-slate">Stats</h1>
+        <h1 className="hidden shrink-0 font-display text-[0.95rem] font-semibold text-slate sm:block">Stats</h1>
+        <div className="flex min-w-0 flex-1 justify-center">
+          <SearchBox />
+        </div>
         <Suspense fallback={null}>
           <Freshness />
         </Suspense>
