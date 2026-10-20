@@ -89,6 +89,11 @@ function Net() {
   );
 }
 
+// Floor and wall layers sit millimetres apart, which z-fights (flickers) while the camera moves. They don't write
+// depth and draw first in this fixed order instead; the goal and tiles still hide them normally. The wall comes after
+// the floor so it covers the run-off behind it.
+const BACK = { runoff: -5, court: -4, area: -3, wall: -2, skirting: -1 };
+
 /** Sports floor as the court draws it: maple court, sky goal area, slate run-off behind the goal line. */
 function Floor() {
   const [court, area, runoff, shadow] = useMemo(() => {
@@ -102,28 +107,28 @@ function Floor() {
   }, []);
   return (
     <group>
-      <mesh rotation-x={-Math.PI / 2} position={[0, -0.01, 10]}>
+      <mesh rotation-x={-Math.PI / 2} position={[0, -0.01, 10]} renderOrder={BACK.runoff}>
         <planeGeometry args={[40, 40]} />
-        <meshStandardMaterial color={COLORS.runoff} map={runoff} roughness={0.85} />
+        <meshStandardMaterial color={COLORS.runoff} map={runoff} roughness={0.85} depthWrite={false} />
       </mesh>
-      <mesh rotation-x={-Math.PI / 2} position={[0, 0, 10]}>
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0, 10]} renderOrder={BACK.court}>
         <planeGeometry args={[20, 20]} />
-        <meshStandardMaterial color={COLORS.surface} map={court} roughness={0.7} />
+        <meshStandardMaterial color={COLORS.surface} map={court} roughness={0.7} depthWrite={false} />
       </mesh>
-      <mesh rotation-x={-Math.PI / 2} position={[0, 0.003, 0]}>
+      <mesh rotation-x={-Math.PI / 2} position={[0, 0.003, 0]} renderOrder={BACK.area}>
         <shapeGeometry args={[GOAL_AREA, 48]} />
-        <meshStandardMaterial color={COLORS.goalArea} map={area} roughness={0.7} />
+        <meshStandardMaterial color={COLORS.goalArea} map={area} roughness={0.7} depthWrite={false} />
       </mesh>
       <Line points={[[-10, 0.006, 0.025], [10, 0.006, 0.025]]} color={COLORS.courtLine} lineWidth={2.4} />
       <Line points={SIX} color={COLORS.courtLine} lineWidth={2.2} />
       {/* hall wall behind the goal: keeps the backdrop light instead of a field of run-off */}
-      <mesh position={[0, 4, -2.2]}>
+      <mesh position={[0, 4, -2.2]} renderOrder={BACK.wall}>
         <planeGeometry args={[60, 8]} />
-        <meshBasicMaterial color="#e9eef3" />
+        <meshBasicMaterial color="#e9eef3" depthWrite={false} />
       </mesh>
-      <mesh position={[0, 0.45, -2.19]}>
+      <mesh position={[0, 0.45, -2.19]} renderOrder={BACK.skirting}>
         <planeGeometry args={[60, 0.9]} />
-        <meshBasicMaterial color="#d3dde6" />
+        <meshBasicMaterial color="#d3dde6" depthWrite={false} />
       </mesh>
       <mesh rotation-x={-Math.PI / 2} position={[0, 0.008, -0.4]}>
         <planeGeometry args={[4.2, 1.9]} />
@@ -144,7 +149,7 @@ function Tile({ c, mode, active, onHover, onTap }: { c: Cell; mode: GoalData["mo
       onPointerOut={() => onHover(null)}
       onClick={(e) => (e.stopPropagation(), onTap(c))}
     >
-      <meshBasicMaterial color={heatColor(mode, c.heat)} transparent opacity={active ? 1 : 0.94} />
+      <meshBasicMaterial color={heatColor(mode, c.heat)} />
     </RoundedBox>
   );
 }
@@ -291,7 +296,7 @@ export default function Goal3D({ data, still = false }: { data: GoalData; still?
         frameloop="demand"
         flat
         dpr={[1, 2]}
-        camera={{ position: home(2).toArray(), fov: FOV, near: 0.1, far: 80 }}
+        camera={{ position: home(2).toArray(), fov: FOV, near: 0.5, far: 80 }}
         gl={{ antialias: true, powerPreference: "low-power" }}
         onPointerMissed={() => setTapped(null)}
         style={{ cursor: hover ? "pointer" : undefined, background: BACKDROP, borderRadius: 12 }}
