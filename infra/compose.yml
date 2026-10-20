@@ -1,0 +1,35 @@
+# Lives in /srv/rokomet-stats on the server; the deploy job copies it there (specs/infrastructure.md).
+name: rokomet-stats
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certs:/certs:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+  app:
+    image: ghcr.io/grega-rotar/rokomet-stats:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      CLAUDE_POOL_SERVER_ID: t4a
+    volumes:
+      - app_data:/data
+      - claude_home:/home/app/.claude
+      - ./claude-pool:/home/app/.config/claude-pool:ro
+
+volumes:
+  caddy_data:
+  caddy_config:
+  app_data:
+  claude_home:

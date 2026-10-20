@@ -1,0 +1,5 @@
+{$DOMAIN} {
+	tls /certs/origin.pem /certs/origin.key
+	encode zstd gzip
+	reverse_proxy app:3000
+}
