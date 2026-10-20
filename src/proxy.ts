@@ -1,12 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
 
-// icon.svg: the favicon, so the login page has one too.
-const PUBLIC = ["/login", "/api/login", "/api/health", "/icon.svg"];
+// icon.svg: the favicon, so the login page has one too. The PWA files too: browsers fetch the
+// manifest and icons without cookies (specs/notifications.md).
+const PUBLIC = ["/login", "/api/login", "/api/health", "/icon.svg", "/sw.js", "/manifest.webmanifest"];
+const PUBLIC_PREFIX = ["/icon/", "/apple-icon"];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (PUBLIC.includes(pathname)) return NextResponse.next();
+  if (PUBLIC.includes(pathname) || PUBLIC_PREFIX.some((p) => pathname.startsWith(p))) return NextResponse.next();
 
   const userId = await verifySession(request.cookies.get(SESSION_COOKIE)?.value).catch(() => null);
   if (userId !== null) return NextResponse.next();

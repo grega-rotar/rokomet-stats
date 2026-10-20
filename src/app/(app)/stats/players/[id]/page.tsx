@@ -2,6 +2,7 @@ import { connection } from "next/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { MIN_SHOTS, playerProfile, playerSeasonIds, similarPlayers } from "@/lib/stats/queries";
+import { FollowButton } from "../../push";
 import { Card, Empty, MetricBar, PageTitle, PlayerLink, TeamLink } from "../../ui";
 import { Drills } from "./drills";
 
@@ -23,6 +24,7 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/s
         eyebrow={p.position}
         title={p.name}
         sub={<><TeamLink id={p.team_id} name={p.team} /> · {prof.competitions.join(", ")}</>}
+        action={<FollowButton kind="player" refId={id} label={p.name} />}
       />
 
       {seasonsPlayed.length > 1 && (
