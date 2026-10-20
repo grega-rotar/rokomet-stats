@@ -1,42 +1,30 @@
 import { NextResponse } from "next/server";
-import { runClaude } from "@/lib/runner";
-import { MIN_SHOTS, playerProfile } from "@/lib/stats/queries";
+import { latestPlan, startPlan } from "@/lib/drills/store";
+import { playerProfile, playerSeasonIds } from "@/lib/stats/queries";
 
-// One Claude run per click, no chat history. The numbers go in the prompt, so Claude only writes the plan.
-export async function POST(request: Request, ctx: RouteContext<"/api/stats/players/[id]/drills">) {
+// Drill plans are stored per player and season: POST starts a background run, GET returns it (the page polls). Spec: specs/drills.md.
+
+type Ctx = RouteContext<"/api/stats/players/[id]/drills">;
+
+async function target(request: Request, ctx: Ctx) {
   const id = Number((await ctx.params).id);
-  const prof = Number.isFinite(id) ? playerProfile(id) : null;
-  if (!prof) return NextResponse.json({ error: "Player not found." }, { status: 404 });
-  const p = prof.player;
+  if (!Number.isInteger(id)) return null;
+  const s = new URL(request.url).searchParams.get("season");
+  const seasonId = s ? Number(s) : playerSeasonIds(id)[0]?.id;
+  return seasonId !== undefined && Number.isInteger(seasonId) ? { id, seasonId } : null;
+}
 
-  const lines = [
-    `Player: ${p.name}, ${p.position}, ${p.team} (${prof.competitions.join(", ")}).`,
-    `Season so far: ${p.matches} matches, ${p.goals} goals from ${p.shots} shots, 7m ${p.goals_7m}/${p.shots_7m}, ${p.two_min} two-minute suspensions, ${p.yellow} yellow, ${p.red} red.`,
-    ...prof.metrics.map((m) => `${m.label}: ${m.me === null ? "n/a" : m.me.toFixed(1)}${m.unit} (average for the position: ${m.avg === null ? "n/a" : m.avg.toFixed(1)}${m.unit}).`),
-    prof.weakSpots.length
-      ? `Weak spots found in the data: ${prof.weakSpots.map((w) => `${w.title}: ${w.detail}`).join(" ")}`
-      : prof.enoughData
-        ? "No metric is clearly below the position average."
-        : `Small sample: fewer than ${MIN_SHOTS} field shots and fewer than 4 matches, so no weakness is proven.`,
-    `Match by match (goals/shots): ${prof.games.map((g) => `${g.goals}/${g.shots}`).join(", ")}.`,
-  ];
-  const prompt = [
-    "Write a one-week handball training plan for this player, in English, as Markdown.",
-    "Use only the numbers below; don't invent other stats. Start with 2-3 bullet points naming what to work on and the numbers behind it.",
-    "Then 3-4 drills, each with: goal, setup (players, equipment, court area), how it works, how to measure progress against the numbers.",
-    "Drills must fit the player's position. If the sample is small, say so and give a general plan for the position instead.",
-    "Do not use any tools.",
-    "",
-    ...lines,
-  ].join("\n");
+const notFound = () => NextResponse.json({ error: "Player not found." }, { status: 404 });
 
-  const result = await runClaude({
-    chatId: `drills-${id}-${Date.now()}`,
-    prompt,
-    resumeSessionId: null,
-    signal: request.signal,
-    hooks: {},
-  });
-  if (!result.ok) return NextResponse.json({ error: result.error ?? "Claude couldn't write the plan. Try again." }, { status: 502 });
-  return NextResponse.json({ text: result.text });
+export async function GET(request: Request, ctx: Ctx) {
+  const t = await target(request, ctx);
+  return t ? NextResponse.json(latestPlan(t.id, t.seasonId)) : notFound();
+}
+
+export async function POST(request: Request, ctx: Ctx) {
+  const t = await target(request, ctx);
+  const prof = t && playerProfile(t.id, t.seasonId);
+  if (!t || !prof) return notFound();
+  const { plan, started } = startPlan(prof, t.seasonId);
+  return NextResponse.json({ plan }, { status: started ? 202 : 200 });
 }

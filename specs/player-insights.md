@@ -246,7 +246,7 @@ Other two leagues, briefly: **Žan Ozmec** (2. SRL) 7m 23/23 is perfect but 23 p
 
 ## 4. Drills
 
-The data only chooses **which weakness** to work on. The drill itself is written by the AI from general coaching knowledge. Example drills per weakness type the data supports:
+The data only chooses **which weakness** to work on. The drill itself is written by the AI from general coaching knowledge. How the app generates, checks and stores plans: [drills.md](drills.md). Example drills per weakness type the data supports:
 
 **Low 9m (long-range) shooting** (e.g. Ivanoski)
 1. *Jump-shot series from 9–10 m*: 3 lines (left, centre, right back), pass, 3-step run-up, jump shot over a static blocker or a tall mannequin; 10 shots per position, aim at the far corners; count goals.

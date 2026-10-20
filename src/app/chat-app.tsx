@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
-import Markdown from "react-markdown";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { AnswerSource, Pre } from "@/components/chat-blocks/blocks";
 import { readSse } from "@/lib/sse";
 import { BallIcon, Wordmark } from "./wordmark";
 
@@ -293,7 +294,7 @@ export function ChatApp() {
             {pending && (
               <AssistantRow>
                 {pending.text ? (
-                  <Answer text={pending.text} />
+                  <Answer text={pending.text} streaming />
                 ) : pending.state === "waiting" ? (
                   <p className="pt-1 text-muted">Waiting for a free slot…</p>
                 ) : (
@@ -619,22 +620,26 @@ function AssistantRow({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Answer({ text }: { text: string }) {
+// Module-level so react-markdown keeps the same components while a reply streams: a drawn block isn't remounted per delta.
+const MD_COMPONENTS: Components = {
+  table: (props) => (
+    <div className="table-wrap">
+      <table {...props} />
+    </div>
+  ),
+  a: (props) => <a {...props} target="_blank" rel="noreferrer" />,
+  pre: Pre,
+};
+
+function Answer({ text, streaming = false }: { text: string; streaming?: boolean }) {
+  const source = useMemo(() => ({ text, streaming }), [text, streaming]);
   return (
     <div className="answer">
-      <Markdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          table: (props) => (
-            <div className="table-wrap">
-              <table {...props} />
-            </div>
-          ),
-          a: (props) => <a {...props} target="_blank" rel="noreferrer" />,
-        }}
-      >
-        {text}
-      </Markdown>
+      <AnswerSource value={source}>
+        <Markdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>
+          {text}
+        </Markdown>
+      </AnswerSource>
     </div>
   );
 }

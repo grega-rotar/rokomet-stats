@@ -80,11 +80,12 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/s
                 : `Not enough data yet: a weak spot needs ${MIN_SHOTS}+ field shots or 4+ matches.`}
             </Empty>
           )}
-          <div className="mt-5 border-t border-line pt-4">
-            <Drills playerId={id} name={p.name} />
-          </div>
         </Card>
       </div>
+
+      <Card title="Training plan" className="mt-6">
+        <Drills playerId={id} seasonId={seasonId!} name={p.name} />
+      </Card>
 
       <Card title="Match by match" className="mt-6" aside="goals of shots">
         {prof.games.length ? (

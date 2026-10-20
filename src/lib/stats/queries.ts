@@ -282,13 +282,35 @@ export function team(teamId: number) {
        WHERE (m.home_team_id = ? AND z.side = ?) OR (m.away_team_id = ? AND z.side = ?) GROUP BY z.zone`,
       teamId, side === "attack" ? "home" : "away", teamId, side === "attack" ? "away" : "home",
     );
+  const misses = (side: "attack" | "defence") =>
+    one<{ over: number; left: number; right: number }>(
+      `SELECT coalesce(sum(s.miss_over), 0) AS over, coalesce(sum(s.miss_left), 0) AS left, coalesce(sum(s.miss_right), 0) AS right
+       FROM team_shooting s JOIN matches m ON m.id = s.match_id
+       WHERE (m.home_team_id = ? AND s.side = ?) OR (m.away_team_id = ? AND s.side = ?)`,
+      teamId, side === "attack" ? "home" : "away", teamId, side === "attack" ? "away" : "home",
+    )!;
+  // Every zone goal in the competition is someone's attack, so one total per zone is the league average for both sides.
+  const leagueZones = all<Zone>(
+    `SELECT z.zone, sum(z.goals) AS goals, sum(z.shots) AS shots FROM team_zones z JOIN matches m ON m.id = z.match_id
+     WHERE m.competition_id = ? AND m.season_id = ? GROUP BY z.zone`,
+    info.competition_id, info.season_id,
+  );
   const matches = all<Match>(
     `SELECT * FROM matches WHERE (home_team_id = ? OR away_team_id = ?) AND status = 1
      ORDER BY substr(date,7,4)||substr(date,4,2)||substr(date,1,2) DESC`,
     teamId, teamId,
   );
   const squad = playerSeasons("AND p.team_id = ?", teamId).sort((a, b) => b.goals - a.goals);
-  return { ...info, attack: zones("attack"), defence: zones("defence"), matches, squad };
+  return {
+    ...info,
+    attack: zones("attack"),
+    defence: zones("defence"),
+    missAttack: misses("attack"),
+    missDefence: misses("defence"),
+    leagueZones,
+    matches,
+    squad,
+  };
 }
 
 export function freshness() {

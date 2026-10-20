@@ -2,7 +2,8 @@ import { connection } from "next/server";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { team } from "@/lib/stats/queries";
-import { Card, Empty, GoalFrame, PageTitle, PlayerLink, TeamLink } from "../../ui";
+import { TeamGoal } from "@/components/goal/team-goal";
+import { Card, Empty, PageTitle, PlayerLink, TeamLink } from "../../ui";
 
 export default async function TeamPage({ params }: PageProps<"/stats/teams/[id]">) {
   await connection(); // stats.db changes under us: never prerender
@@ -22,14 +23,13 @@ export default async function TeamPage({ params }: PageProps<"/stats/teams/[id]"
       />
 
       {hasZones ? (
-        <div className="mb-6 grid gap-6 md:grid-cols-2">
-          <Card title="Where they score">
-            <GoalFrame zones={t.attack} label="Their shots" />
-          </Card>
-          <Card title="Where they concede">
-            <GoalFrame zones={t.defence} label="Opponents' shots" />
-          </Card>
-        </div>
+        <Card title="Goal zones" aside="league = all teams in the competition" className="mb-6">
+          <TeamGoal
+            attack={{ zones: t.attack, miss: t.missAttack }}
+            defence={{ zones: t.defence, miss: t.missDefence }}
+            league={t.leagueZones}
+          />
+        </Card>
       ) : (
         <Card title="Goal zones" className="mb-6">
           <Empty>
@@ -38,7 +38,7 @@ export default async function TeamPage({ params }: PageProps<"/stats/teams/[id]"
         </Card>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <Card title="Squad" aside="field players, by goals">
           {t.squad.length ? (
             <table className="w-full text-sm tabular-nums">
