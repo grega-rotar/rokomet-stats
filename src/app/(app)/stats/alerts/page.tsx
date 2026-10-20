@@ -1,6 +1,5 @@
 import { connection } from "next/server";
 import { Suspense } from "react";
-
 import { shortName } from "@/lib/stats/groups";
 import { competitions, seasons } from "@/lib/stats/queries";
 import { PageLoading, PageTitle } from "../ui";
