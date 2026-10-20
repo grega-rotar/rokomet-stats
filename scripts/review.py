@@ -46,7 +46,7 @@ GOAL_TYPES = ("Strel na gol", "7M")  # play-by-play events of the scoring team; 
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS reviews (match_id INTEGER, check_name TEXT, reason TEXT, detail TEXT,
-    source TEXT, model TEXT, created_at TEXT, PRIMARY KEY (match_id, check_name));
+    source TEXT, model TEXT, created_at TEXT, kind TEXT, PRIMARY KEY (match_id, check_name));
 CREATE TABLE IF NOT EXISTS audits (match_id INTEGER, field TEXT, db_value INTEGER, ai_value INTEGER, ok INTEGER,
     created_at TEXT, PRIMARY KEY (match_id, field));
 """
@@ -85,9 +85,9 @@ def team_names(db, mid):
 def explain_load(detail):
     if "HTTP Error 5" in detail:
         code = re.search(r"HTTP Error (\d+)", detail)[1]
-        return f"RZS server error (HTTP {code}); the crawler retries the match on its next run"
+        return "server_error", f"RZS server error (HTTP {code}); the crawler retries the match on its next run"
     if re.search(r"HTTPError|URLError|timed out|TimeoutError|ConnectionReset|RemoteDisconnected", detail):
-        return f"RZS request failed ({detail[:80]}); the crawler retries the match on its next run"
+        return "request_failed", f"RZS request failed ({detail[:80]}); the crawler retries the match on its next run"
     return None
 
 
@@ -97,7 +97,7 @@ def explain_player_goals(db, mid, detail):
         return None
     players, score = v[:2], v[2:]
     names = team_names(db, mid)
-    parts = []
+    parts, kinds = [], []
     for i, side in enumerate(SIDES):
         gap = score[i] - players[i]
         if gap == 0:
@@ -106,6 +106,7 @@ def explain_player_goals(db, mid, detail):
         if rows == 0:
             forfeit = " (registered result, e.g. a forfeit)" if score[i] == 10 and score[1 - i] == 0 else ""
             parts.append(f"{names[side]}: no player rows at all{forfeit}")
+            kinds.append("no_player_rows")
             continue
         pbp = dict(db.execute(
             f"SELECT player, count(*) FROM events WHERE match_id=? AND side=? AND value=1 AND type IN ({','.join('?' * len(GOAL_TYPES))}) GROUP BY player",
@@ -122,19 +123,23 @@ def explain_player_goals(db, mid, detail):
                 found += short
                 if name in keepers:
                     bits.append(f"goalkeeper {name} scored {short} (goalkeeper rows carry no goals)")
+                    kinds.append("goalkeeper_goal")
                 elif name not in table:
                     bits.append(f"{name} scored {short} in the play-by-play but is missing from the player table")
+                    kinds.append("player_missing")
                 else:
                     bits.append(f"{name} has {short} more in the play-by-play than in the player table")
+                    kinds.append("player_short")
             if found == gap:
                 parts.append(f"{names[side]}: " + "; ".join(bits))
                 continue
         if 0 < gap <= 3 and not pbp:
             parts.append(f"{names[side]}: {gap} goal{'s' if gap > 1 else ''} not credited to any player "
                          f"(players sum to {players[i]}, score {score[i]})")
+            kinds.append("goal_not_credited")
             continue
         return None  # one side no rule fits: leave the whole check for the AI review
-    return "; ".join(parts) or None
+    return (kinds[0], "; ".join(parts)) if parts else None
 
 
 def zone_coverage(db):
@@ -157,14 +162,14 @@ def explain_zones(db, mid, side, detail, coverage):
         comp = db.execute("SELECT competition_id FROM matches WHERE id=?", (mid,)).fetchone()
         with_zones, total = coverage.get(comp[0] if comp else None, (0, 0))
         if total and with_zones / total < 0.5:
-            return f"competition without goal zones (only {with_zones} of {total} team sheets have any)"
-        return "no goal zones entered for this team (only the 7m)"
+            return "competition_no_zones", f"competition without goal zones (only {with_zones} of {total} team sheets have any)"
+        return "team_no_zones", "no goal zones entered for this team (only the 7m)"
     if zg == score and sevens > 0:
-        return f"the zone grid already holds all {score} goals, the {sevens} 7m goals included"
+        return "grid_has_7m", f"the zone grid already holds all {score} goals, the {sevens} 7m goals included"
     if 0 < gap <= 3:
-        return f"goals without zone: {gap}"
+        return "goals_without_zone", f"goals without zone: {gap}"
     if gap > 3:
-        return f"partial zones: {zg} of {score - sevens} field goals have a zone"
+        return "partial_zones", f"partial zones: {zg} of {score - sevens} field goals have a zone"
     return None  # more goals than the score: the AI looks at the picture
 
 
@@ -176,13 +181,13 @@ def explain(db, mid, name, detail, coverage):
     if name.startswith("zones_plus_7m_eq_score_"):
         return explain_zones(db, mid, name.rsplit("_", 1)[1], detail, coverage)
     if name == "pdf" and detail == "no pdf":
-        return "RZS has no stats PDF for this match"
+        return "no_pdf", "RZS has no stats PDF for this match"
     return None
 
 
-def put_review(db, mid, check, reason, detail, source, model=None):
-    db.execute("INSERT OR REPLACE INTO reviews VALUES (?,?,?,?,?,?,?)",
-               (mid, check, reason, detail, source, model, now()))
+def put_review(db, mid, check, kind, reason, detail, source, model=None):
+    db.execute("INSERT OR REPLACE INTO reviews VALUES (?,?,?,?,?,?,?,?)",
+               (mid, check, reason, detail, source, model, now(), kind))
 
 
 def triage(db):
@@ -192,32 +197,22 @@ def triage(db):
     coverage = zone_coverage(db)
     counts = Counter()
     for mid, name, detail in db.execute("SELECT match_id, name, detail FROM checks WHERE ok = 0").fetchall():
-        reason = explain(db, mid, name, detail, coverage)
-        if reason:
-            put_review(db, mid, name, reason, detail, "rule")
-            counts[rule_key(name, reason)] += 1
+        hit = explain(db, mid, name, detail, coverage)
+        if hit:
+            put_review(db, mid, name, *hit, detail, "rule")
+            counts[hit[0]] += 1
             continue
         old = db.execute("SELECT source FROM reviews WHERE match_id=? AND check_name=?", (mid, name)).fetchone()
         if old and old[0] == "ai":
             counts["(ai review kept)"] += 1
         elif pdf_bytes(mid) is None:
-            put_review(db, mid, name, "no rule fits and there is no stats PDF to look at", detail, "rule")
-            counts["no rule, no PDF"] += 1
+            put_review(db, mid, name, "unexplained", "no rule fits and there is no stats PDF to look at", detail, "rule")
+            counts["unexplained"] += 1
         else:
             db.execute("DELETE FROM reviews WHERE match_id=? AND check_name=?", (mid, name))
             counts["(waiting for AI review)"] += 1
     db.commit()
     return counts
-
-
-def rule_key(name, reason):
-    """Group label for the triage summary: the reason without its numbers and names."""
-    if name == "player_goals_eq_score":
-        for k in ("no player rows", "goalkeeper", "missing from the player table", "more in the play-by-play",
-                  "not credited to any player"):
-            if k in reason:
-                return f"player goals: {k}"
-    return re.sub(r"\b\d+\b", "n", reason.split(" (")[0]) if name.startswith("zones") else reason.split(";")[0][:60]
 
 
 # ---------------------------------------------------------------- pictures
@@ -384,7 +379,7 @@ def ai_review(db, dry=False, only=None, max_runs=MAX_RUNS):
             text, model = ask(prompt, tmp, "review.png")
             reason = (text.splitlines() or [""])[0].strip()[:300]
             if reason:
-                put_review(db, mid, name, reason, detail, "ai", model)
+                put_review(db, mid, name, "ai", reason, detail, "ai", model)
                 db.commit()
             print(f"ai review {mid} {name}: {reason}")
         except Exception as ex:
@@ -499,6 +494,9 @@ def main():
     only = int(args[args.index("--match") + 1]) if "--match" in args else None
     db = sqlite3.connect(os.path.join(DATA, "stats.db"), timeout=120)
     db.executescript(SCHEMA)
+    if "kind" not in [c[1] for c in db.execute("PRAGMA table_info(reviews)")]:  # tables from before `kind`
+        db.execute("ALTER TABLE reviews ADD COLUMN kind TEXT")
+        db.execute("UPDATE reviews SET kind = 'ai' WHERE source = 'ai'")
     if step in ("all", "triage"):
         counts = triage(db)
         print(f"triage: {sum(counts.values())} failed checks")
