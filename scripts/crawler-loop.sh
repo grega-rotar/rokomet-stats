@@ -23,11 +23,12 @@ while true; do
   # Chat Claude runs in $WORK_DIR/<chat>; Claude Code reads CLAUDE.md from parent folders.
   mkdir -p "${WORK_DIR:-/data/work}" && cp /app/scripts/chat-CLAUDE.md "${WORK_DIR:-/data/work}/CLAUDE.md"
   echo "$(date -Is) crawl current season"
+  crawl current
   # Once: fill the PDF tables added later (shot types) for matches crawled before them, from the cache.
+  # After the current season so new results don't wait behind it; resumes where a restart cut it off.
   if [ ! -f "$DATA/reparse-shot-types.done" ]; then
     python3 /app/scripts/crawl.py --reparse && touch "$DATA/reparse-shot-types.done"
   fi
-  crawl current
   python3 /app/scripts/clubs.py current || echo "$(date -Is) clubs.py failed"
   # Review right after the current season, so it doesn't wait for the (long) first history crawl.
   echo "$(date -Is) review failed checks"

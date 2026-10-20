@@ -303,12 +303,15 @@ def load_shot_types(db, mid, pl, score):
 
 
 def reparse(season_id=None):
-    """Refill the PDF tables of already-loaded deep matches from the cache (no network)."""
+    """Refill the PDF tables of already-loaded deep matches from the cache (no network).
+    Skips matches that already have shot types or a pdf_players failure, so a restart (every deploy) resumes."""
     db = sqlite3.connect(os.path.join(DATA, "stats.db"), timeout=120)
     db.execute("PRAGMA journal_mode = WAL")
     db.executescript(SCHEMA)
     rows = db.execute("SELECT id, home_goals, away_goals FROM matches WHERE status = 1 AND id IN "
-                      "(SELECT match_id FROM checks WHERE name IN ('pdf', 'pdf_score_eq_score'))"
+                      "(SELECT match_id FROM checks WHERE name IN ('pdf', 'pdf_score_eq_score')) "
+                      "AND id NOT IN (SELECT match_id FROM player_shot_types) "
+                      "AND id NOT IN (SELECT match_id FROM checks WHERE name = 'pdf_players')"
                       + (" AND season_id = ?" if season_id else ""), (season_id,) if season_id else ()).fetchall()
     done = missing = 0
     for mid, hg, ag in rows:
