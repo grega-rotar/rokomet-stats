@@ -10,7 +10,8 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+# public/ is empty and not in git; the runtime stage copies it.
+RUN mkdir -p public && npm run build
 
 FROM node:24-bookworm-slim
 ARG CLAUDE_CODE_VERSION=2.1.304
