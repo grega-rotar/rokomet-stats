@@ -233,7 +233,7 @@ function Settings({ push, topLeagues }: { push: ReturnType<typeof usePush>; topL
             <p className="mx-auto mt-1 max-w-sm text-sm text-muted">
               Open a team or player and tap <strong className="text-ink">Follow</strong>. You get their results even with top-league results off.
             </p>
-            <Link href="/stats" className={`${secondary} mt-4`}>
+            <Link href="/stats/teams" className={`${secondary} mt-4`}>
               Browse teams
             </Link>
           </div>
