@@ -1,0 +1,87 @@
+# check -> image -> deploy, see specs/deployment.md.
+# Rollback: run by hand with `tag` = an older sha; that skips check and image.
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Deploy this existing image tag (git sha) instead of building"
+        required: false
+
+env:
+  IMAGE: ghcr.io/grega-rotar/rokomet-stats
+  HEALTH_URL: https://rokomet.etiam.si/api/health
+
+jobs:
+  check:
+    if: ${{ !inputs.tag }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  image:
+    if: ${{ github.event_name != 'pull_request' && !inputs.tag }}
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    if: ${{ github.event_name != 'pull_request' && !cancelled() && !failure() }}
+    needs: image
+    runs-on: ubuntu-latest
+    concurrency: deploy
+    env:
+      TAG: ${{ inputs.tag || github.sha }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: SSH key
+        run: |
+          install -m 700 -d ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519
+      - name: Copy compose.yml and Caddyfile
+        run: scp infra/compose.yml infra/Caddyfile deploy@${{ secrets.DEPLOY_HOST }}:/srv/rokomet-stats/
+      - name: Pull and restart
+        run: |
+          ssh deploy@${{ secrets.DEPLOY_HOST }} "cd /srv/rokomet-stats && export IMAGE_TAG=$TAG && docker compose pull app && docker compose up -d"
+      - name: Wait for /api/health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS --max-time 5 "$HEALTH_URL"; then exit 0; fi
+            sleep 2
+          done
+          echo "$HEALTH_URL did not return 200 within 60 s"
+          exit 1
