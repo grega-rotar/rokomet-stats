@@ -172,3 +172,15 @@ body {
     animation: none;
   }
 }
+
+/* Tailwind 4 leaves buttons on the default arrow; everything clickable gets the hand. */
+@layer base {
+  button:not(:disabled),
+  [role="button"],
+  [role="option"],
+  [role="menuitem"],
+  summary,
+  label[for] {
+    cursor: pointer;
+  }
+}

@@ -30,7 +30,7 @@ export function competitions(seasonId: number): Competition[] {
 }
 
 export type Match = {
-  id: number; date: string; round: string; home: string; away: string;
+  id: number; date: string; time: string; round: string; home: string; away: string;
   home_team_id: number; away_team_id: number; home_goals: number; away_goals: number;
   home_goals_ht: number | null; away_goals_ht: number | null; hall: string; attendance: number | null;
 };
