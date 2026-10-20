@@ -1,13 +1,25 @@
 import { positionLabel } from "@/lib/stats/groups";
 import { connection } from "next/server";
+import { Suspense } from "react";
+import { PageLoading } from "../../ui";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { MIN_SHOTS, playerProfile, playerSeasonIds, similarPlayers } from "@/lib/stats/queries";
 import { FollowButton } from "../../push";
+import { TYPE_GAP, TYPE_MIN } from "@/lib/stats/shot-types";
 import { Card, Empty, MetricBar, PageTitle, PlayerLink, TeamLink } from "../../ui";
 import { Drills } from "./drills";
+import { AskAbout } from "../../chat-panel";
 
-export default async function PlayerPage({ params, searchParams }: PageProps<"/stats/players/[id]">) {
+export default function PlayerPage(props: PageProps<"/stats/players/[id]">) {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <PlayerPageBody {...props} />
+    </Suspense>
+  );
+}
+
+async function PlayerPageBody({ params, searchParams }: PageProps<"/stats/players/[id]">) {
   await connection(); // stats.db changes under us: never prerender
   const id = Number((await params).id);
   const seasonsPlayed = Number.isFinite(id) ? playerSeasonIds(id) : [];
@@ -21,6 +33,16 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/s
 
   return (
     <>
+      <AskAbout
+        label={p.name}
+        prefix={`About player ${p.name} (player_id ${id}, ${p.position}, ${p.team}, season ${seasonsPlayed.find((s) => s.id === seasonId)?.name ?? ""}):`}
+        examples={[
+          { label: "Weak spots + drills", text: "What are the weak spots, and which 3 drills would help most?" },
+          { label: "Plays like", text: "Which players in the league play most like this player?" },
+          { label: "Vs the best", text: "How does this player compare with the best players in the same position?" },
+          { label: "Form", text: "How has the form been over the last matches?" },
+        ]}
+      />
       <PageTitle
         eyebrow={positionLabel(p.position)}
         title={p.name}
@@ -88,6 +110,34 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/s
           </div>
         </Card>
       </div>
+
+      <Card
+        title="Shot types"
+        className="mt-6"
+        aside={prof.shotTypes ? `${prof.shotTypes.matches} matches with a stats sheet · tick = average` : undefined}
+      >
+        {prof.shotTypes ? (
+          <>
+            <div className="grid gap-x-10 gap-y-4 sm:grid-cols-2">
+              {prof.shotTypes.rows.map((r) => (
+                <MetricBar
+                  key={r.key}
+                  m={{ key: r.key, label: r.label, me: r.pct, avg: r.avg, unit: "%", better: "high" }}
+                  note={r.shots ? `${r.goals}/${r.shots}` : "no shots"}
+                  flag={r.shots >= TYPE_MIN && r.pct !== null && r.avg !== null && r.pct < r.avg - TYPE_GAP}
+                />
+              ))}
+            </div>
+            <p className="mt-4 text-xs text-muted">
+              Shot mix {prof.shotTypes.rows.map((r) => `${r.key} ${r.share.toFixed(0)}%`).join(" · ")}
+              {" · "}{prof.shotTypes.misses} missed the goal. From the match stats sheets, which can differ slightly
+              from the totals above; under {TYPE_MIN} attempts of a type is a small sample.
+            </p>
+          </>
+        ) : (
+          <Empty>Shot types (7m, 6m, wing, 9m) exist only for the top senior competitions, so there are none for this player.</Empty>
+        )}
+      </Card>
 
       <Card title="Match by match" className="mt-6" aside="goals of shots">
         {prof.games.length ? (

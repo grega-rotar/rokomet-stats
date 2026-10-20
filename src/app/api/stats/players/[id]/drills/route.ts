@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { runClaude } from "@/lib/runner";
 import { MIN_SHOTS, playerProfile } from "@/lib/stats/queries";
+import { TYPE_MIN } from "@/lib/stats/shot-types";
 
 // One Claude run per click, no chat history. The numbers go in the prompt, so Claude only writes the plan.
 export async function POST(request: Request, ctx: RouteContext<"/api/stats/players/[id]/drills">) {
@@ -13,6 +14,12 @@ export async function POST(request: Request, ctx: RouteContext<"/api/stats/playe
     `Player: ${p.name}, ${p.position}, ${p.team} (${prof.competitions.join(", ")}).`,
     `Season so far: ${p.matches} matches, ${p.goals} goals from ${p.shots} shots, 7m ${p.goals_7m}/${p.shots_7m}, ${p.two_min} two-minute suspensions, ${p.yellow} yellow, ${p.red} red.`,
     ...prof.metrics.map((m) => `${m.label}: ${m.me === null ? "n/a" : m.me.toFixed(1)}${m.unit} (average for the position: ${m.avg === null ? "n/a" : m.avg.toFixed(1)}${m.unit}).`),
+    prof.shotTypes
+      ? `Shot types from the match stats sheets (${prof.shotTypes.matches} matches; under ${TYPE_MIN} attempts of a type is a small sample): ` +
+        prof.shotTypes.rows
+          .map((r) => `${r.key} ${r.goals}/${r.shots}${r.pct === null ? "" : ` = ${r.pct.toFixed(0)}%`} (position average ${r.avg === null ? "n/a" : `${r.avg.toFixed(0)}%`})`)
+          .join(", ") + `; ${prof.shotTypes.misses} shots missed the goal.`
+      : "No shot types (6m / wing / 9m) for this player: they exist only for the top senior competitions.",
     prof.weakSpots.length
       ? `Weak spots found in the data: ${prof.weakSpots.map((w) => `${w.title}: ${w.detail}`).join(" ")}`
       : prof.enoughData

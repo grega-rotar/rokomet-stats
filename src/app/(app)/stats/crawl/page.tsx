@@ -1,6 +1,8 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { connection } from "next/server";
+import { Suspense } from "react";
+import { PageLoading } from "../ui";
 import { all } from "@/lib/stats/db";
 import { Card, Empty, PageTitle } from "../ui";
 import { AutoRefresh } from "./auto-refresh";
@@ -113,7 +115,15 @@ function Overall({ states, running, total }: { states: SeasonState[]; running: P
   );
 }
 
-export default async function CrawlPage() {
+export default function CrawlPage() {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <CrawlPageBody />
+    </Suspense>
+  );
+}
+
+async function CrawlPageBody() {
   await connection();
   const progress = safe<Progress>("SELECT * FROM crawl_progress ORDER BY state = 'running' DESC, updated_at DESC");
   const seasons = safe<SeasonRow>(

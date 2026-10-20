@@ -30,7 +30,11 @@ const PAGES = [
   { href: "/stats", label: "Stats", exact: true, icon: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" /> },
   { href: "/stats/rankings", label: "Rankings", exact: false, icon: <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 01-10 0V4zM17 6h3v2a3 3 0 01-3 3M7 6H4v2a3 3 0 003 3" /> },
   { href: "/stats/alerts", label: "Alerts", exact: false, icon: <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0" /> },
+  { href: "/stats/teams", label: "Teams", exact: true, icon: <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" /> },
+  { href: "/stats/near", label: "Near you", exact: false, icon: <path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11zM12 12a2 2 0 100-4 2 2 0 000 4z" /> },
+  { href: "/stats/data", label: "Data quality", exact: false, icon: <path d="M9 12l2 2 4-4M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z" /> },
   { href: "/stats/crawl", label: "Crawler", exact: false, icon: <path d="M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3M18 3v4h-4M6 21v-4h4" /> },
+  { href: "/diagrams", label: "How it works", exact: false, icon: <path d="M3 3h7v7H3zM14 14h7v7h-7zM10 6.5h4a3 3 0 013 3V14M6.5 10v4a3 3 0 003 3H14" /> },
 ] as const;
 
 /** The ☰ button for a page's own top bar; opens the sidebar on phones. */
