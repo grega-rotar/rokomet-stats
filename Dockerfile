@@ -15,7 +15,8 @@ RUN mkdir -p public && npm run build
 
 FROM node:24-bookworm-slim
 ARG CLAUDE_CODE_VERSION=2.1.304
-RUN apt-get update && apt-get install -y --no-install-recommends python3 git ca-certificates && rm -rf /var/lib/apt/lists/* \
+# python3-pypdf: the stats crawler parses the RZS match PDFs (scripts/crawl.py, specs/stats-pipeline.md).
+RUN apt-get update && apt-get install -y --no-install-recommends python3 python3-pypdf git ca-certificates && rm -rf /var/lib/apt/lists/* \
  && npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION} && npm cache clean --force
 # claude-pool v0.16.1, pinned by hash: https://github.com/grega-rotar/claude-pool/releases/tag/v0.16.1
 ADD --chmod=755 --checksum=sha256:e96ee87a1dc6ae953639062ec10a8545e33e64aef76d01c3d4aa004913567300 \
@@ -31,6 +32,7 @@ COPY --from=build --chown=app:app /app/.next/standalone ./
 COPY --from=build --chown=app:app /app/.next/static ./.next/static
 COPY --from=build --chown=app:app /app/public ./public
 COPY --from=build --chown=app:app /app/drizzle ./drizzle
+COPY --from=build --chown=app:app /app/scripts ./scripts
 
 USER app
 ENV NODE_ENV=production \
@@ -38,6 +40,8 @@ ENV NODE_ENV=production \
     HOSTNAME=0.0.0.0 \
     PORT=3000 \
     DATABASE_PATH=/data/app.db \
+    STATS_DB_PATH=/data/stats.db \
+    STATS_DATA_DIR=/data \
     WORK_DIR=/data/work \
     CLAUDE_BIN=claude-pool \
     CLAUDE_POOL_DIR=/home/app/.config/claude-pool \

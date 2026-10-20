@@ -1,0 +1,151 @@
+<mxfile host="app.diagrams.net">
+  <diagram id="Deploy" name="Deploy">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1920" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="t" value="rokomet-stats: CI/CD (.github/workflows/deploy.yml)" style="text;html=1;fontSize=18;fontStyle=1;align=left;verticalAlign=middle;fontColor=#2c3e50;" vertex="1" parent="1">
+          <mxGeometry x="20" y="0" width="900" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="dev" value="&lt;b&gt;Developer&lt;/b&gt;" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#e6e6e6;strokeColor=#999999;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="20" y="200" width="130" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="repo" value="&lt;b&gt;GitHub&lt;/b&gt;&lt;br&gt;grega-rotar/rokomet-stats&lt;br&gt;push to main / PR / workflow_dispatch" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#e6e6e6;strokeColor=#999999;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="190" y="180" width="200" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="gha" value="GitHub Actions: workflow deploy" style="swimlane;html=1;whiteSpace=wrap;startSize=30;rounded=1;arcSize=2;fontStyle=1;fontSize=13;fillColor=#2c3e50;swimlaneFillColor=#ffffff;strokeColor=#2c3e50;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="440" y="50" width="900" height="450" as="geometry" />
+        </mxCell>
+        <mxCell id="check" value="job: check" style="swimlane;html=1;whiteSpace=wrap;startSize=30;rounded=1;arcSize=2;fontStyle=1;fontSize=13;fillColor=#94c11e;swimlaneFillColor=#f6fbe9;strokeColor=#6e9116;fontColor=#1a1a1a;" vertex="1" parent="gha">
+          <mxGeometry x="20" y="45" width="250" height="310" as="geometry" />
+        </mxCell>
+        <mxCell id="s10" value="npm ci" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#94c11e;strokeColor=#6e9116;fontColor=#1a1a1a;" vertex="1" parent="check">
+          <mxGeometry x="20" y="45" width="210" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="s11" value="npm run lint" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#94c11e;strokeColor=#6e9116;fontColor=#1a1a1a;" vertex="1" parent="check">
+          <mxGeometry x="20" y="97" width="210" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="s12" value="npm run typecheck" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#94c11e;strokeColor=#6e9116;fontColor=#1a1a1a;" vertex="1" parent="check">
+          <mxGeometry x="20" y="149" width="210" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="s13" value="npm test" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#94c11e;strokeColor=#6e9116;fontColor=#1a1a1a;" vertex="1" parent="check">
+          <mxGeometry x="20" y="201" width="210" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="s14" value="npm run build (next build)" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#94c11e;strokeColor=#6e9116;fontColor=#1a1a1a;" vertex="1" parent="check">
+          <mxGeometry x="20" y="253" width="210" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="image" value="job: image (needs check)" style="swimlane;html=1;whiteSpace=wrap;startSize=30;rounded=1;arcSize=2;fontStyle=1;fontSize=13;fillColor=#94c11e;swimlaneFillColor=#f6fbe9;strokeColor=#6e9116;fontColor=#1a1a1a;" vertex="1" parent="gha">
+          <mxGeometry x="320" y="45" width="250" height="210" as="geometry" />
+        </mxCell>
+        <mxCell id="s20" value="docker buildx (GHA cache)" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#94c11e;strokeColor=#6e9116;fontColor=#1a1a1a;" vertex="1" parent="image">
+          <mxGeometry x="20" y="45" width="210" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="s21" value="login ghcr.io (GITHUB_TOKEN)" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#94c11e;strokeColor=#6e9116;fontColor=#1a1a1a;" vertex="1" parent="image">
+          <mxGeometry x="20" y="97" width="210" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="s22" value="push :&amp;lt;sha&amp;gt; + :latest" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#94c11e;strokeColor=#6e9116;fontColor=#1a1a1a;" vertex="1" parent="image">
+          <mxGeometry x="20" y="149" width="210" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="deploy" value="job: deploy (needs image, concurrency: deploy)" style="swimlane;html=1;whiteSpace=wrap;startSize=30;rounded=1;arcSize=2;fontStyle=1;fontSize=13;fillColor=#94c11e;swimlaneFillColor=#f6fbe9;strokeColor=#6e9116;fontColor=#1a1a1a;" vertex="1" parent="gha">
+          <mxGeometry x="620" y="45" width="260" height="330" as="geometry" />
+        </mxCell>
+        <mxCell id="s30" value="SSH key + known_hosts (secrets)" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#94c11e;strokeColor=#6e9116;fontColor=#1a1a1a;" vertex="1" parent="deploy">
+          <mxGeometry x="20" y="45" width="220" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="s31" value="scp compose.yml + Caddyfile" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#94c11e;strokeColor=#6e9116;fontColor=#1a1a1a;" vertex="1" parent="deploy">
+          <mxGeometry x="20" y="113" width="220" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="s32" value="ssh: docker compose pull app &amp;&amp; up -d" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#94c11e;strokeColor=#6e9116;fontColor=#1a1a1a;" vertex="1" parent="deploy">
+          <mxGeometry x="20" y="181" width="220" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="s33" value="poll /api/health, 30 × 2 s" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#94c11e;strokeColor=#6e9116;fontColor=#1a1a1a;" vertex="1" parent="deploy">
+          <mxGeometry x="20" y="249" width="220" height="52" as="geometry" />
+        </mxCell>
+        <mxCell id="note" value="Pull request: check only.&lt;br&gt;workflow_dispatch tag=&amp;lt;sha&amp;gt;: skips check and image, deploys that tag (rollback)." style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#fffbe6;strokeColor=#c9b458;fontColor=#333333;align=left;spacingLeft=8;fontSize=11;" vertex="1" parent="gha">
+          <mxGeometry x="320" y="290" width="250" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="ghcr" value="&lt;b&gt;GHCR&lt;/b&gt; (public)&lt;br&gt;ghcr.io/grega-rotar/rokomet-stats:&amp;lt;sha&amp;gt;" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#e6e6e6;strokeColor=#999999;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="760" y="560" width="280" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="srv" value="Server t4a (Hetzner) · user deploy" style="swimlane;html=1;whiteSpace=wrap;startSize=30;rounded=1;arcSize=2;fontStyle=1;fontSize=13;fillColor=#2c3e50;swimlaneFillColor=#f3f5f7;strokeColor=#2c3e50;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="50" width="400" height="470" as="geometry" />
+        </mxCell>
+        <mxCell id="dir" value="&lt;b&gt;/srv/rokomet-stats&lt;/b&gt;&lt;br&gt;compose.yml · Caddyfile · .env · certs/ · claude-pool/" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#2c3e50;strokeColor=#1a252f;fontColor=#ffffff;" vertex="1" parent="srv">
+          <mxGeometry x="20" y="50" width="360" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="compose" value="&lt;b&gt;docker compose&lt;/b&gt;&lt;br&gt;IMAGE_TAG=&amp;lt;sha&amp;gt; pull app, up -d" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#2c3e50;strokeColor=#1a252f;fontColor=#ffffff;" vertex="1" parent="srv">
+          <mxGeometry x="20" y="170" width="360" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c_caddy" value="&lt;b&gt;caddy&lt;/b&gt; :443" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#2c3e50;strokeColor=#1a252f;fontColor=#ffffff;" vertex="1" parent="srv">
+          <mxGeometry x="20" y="290" width="160" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="c_app" value="&lt;b&gt;app&lt;/b&gt; :3000" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#94c11e;strokeColor=#6e9116;fontColor=#1a1a1a;" vertex="1" parent="srv">
+          <mxGeometry x="220" y="290" width="160" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="migr" value="Drizzle migrate()&lt;br&gt;before listening" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#94c11e;strokeColor=#6e9116;fontColor=#1a1a1a;" vertex="1" parent="srv">
+          <mxGeometry x="220" y="390" width="160" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="cf" value="&lt;b&gt;Cloudflare&lt;/b&gt;&lt;br&gt;https://rokomet.etiam.si/api/health" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#2c3e50;strokeColor=#1a252f;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="1400" y="580" width="400" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" value="Legend" style="swimlane;html=1;whiteSpace=wrap;startSize=30;rounded=1;arcSize=2;fontStyle=1;fontSize=13;fillColor=#999999;swimlaneFillColor=#f5f5f5;strokeColor=#999999;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="20" y="560" width="220" height="170" as="geometry" />
+        </mxCell>
+        <mxCell id="lg0" value="Our components" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#94c11e;strokeColor=#6e9116;fontColor=#1a1a1a;" vertex="1" parent="legend">
+          <mxGeometry x="15" y="40" width="190" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="lg1" value="Infrastructure" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#2c3e50;strokeColor=#1a252f;fontColor=#ffffff;" vertex="1" parent="legend">
+          <mxGeometry x="15" y="72" width="190" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="lg2" value="Data stores" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#36a9e0;strokeColor=#1f7fae;fontColor=#ffffff;" vertex="1" parent="legend">
+          <mxGeometry x="15" y="104" width="190" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="lg3" value="External services" style="html=1;whiteSpace=wrap;rounded=1;arcSize=8;fontSize=12;fillColor=#e6e6e6;strokeColor=#999999;fontColor=#333333;" vertex="1" parent="legend">
+          <mxGeometry x="15" y="136" width="190" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="e1" value="git push" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#555555;fontSize=11;labelBackgroundColor=#ffffff;fontColor=#333333;" edge="1" parent="1" source="dev" target="repo">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e2" value="trigger" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#555555;fontSize=11;labelBackgroundColor=#ffffff;fontColor=#333333;" edge="1" parent="1" source="repo" target="check">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e3" value="on success" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#555555;fontSize=11;labelBackgroundColor=#ffffff;fontColor=#333333;" edge="1" parent="1" source="check" target="image">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e4" value="on success" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#555555;fontSize=11;labelBackgroundColor=#ffffff;fontColor=#333333;" edge="1" parent="1" source="image" target="deploy">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e5" value="push (HTTPS)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#555555;fontSize=11;labelBackgroundColor=#ffffff;fontColor=#333333;" edge="1" parent="1" source="s22" target="ghcr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e6" value="scp, SSH :22" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#555555;fontSize=11;labelBackgroundColor=#ffffff;fontColor=#333333;" edge="1" parent="1" source="s31" target="dir">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e7" value="ssh :22 as deploy" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#555555;fontSize=11;labelBackgroundColor=#ffffff;fontColor=#333333;" edge="1" parent="1" source="s32" target="compose">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e8" value="pull image (no login)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#555555;fontSize=11;labelBackgroundColor=#ffffff;fontColor=#333333;dashed=1;" edge="1" parent="1" source="ghcr" target="compose">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e9" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#555555;fontSize=11;labelBackgroundColor=#ffffff;fontColor=#333333;" edge="1" parent="1" source="dir" target="compose">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e10" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#555555;fontSize=11;labelBackgroundColor=#ffffff;fontColor=#333333;" edge="1" parent="1" source="compose" target="c_caddy">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e11" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#555555;fontSize=11;labelBackgroundColor=#ffffff;fontColor=#333333;" edge="1" parent="1" source="compose" target="c_app">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e12" value="on start" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#555555;fontSize=11;labelBackgroundColor=#ffffff;fontColor=#333333;" edge="1" parent="1" source="c_app" target="migr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e13" value="HTTPS GET, expect 200" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#555555;fontSize=11;labelBackgroundColor=#ffffff;fontColor=#333333;" edge="1" parent="1" source="s33" target="cf">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e14" value="proxy :443" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=block;endFill=1;strokeColor=#555555;fontSize=11;labelBackgroundColor=#ffffff;fontColor=#333333;" edge="1" parent="1" source="cf" target="c_caddy">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -227,7 +227,15 @@ export function ChatApp() {
             </svg>
             New chat
           </button>
-          {/* nav */}
+          <a
+            href="/stats"
+            className="mt-2 flex items-center gap-2.5 rounded-lg px-3.5 py-2 text-sm text-white/70 transition hover:bg-white/5 hover:text-white"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+              <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />
+            </svg>
+            Stats
+          </a>
         </div>
 
         <nav className="mt-3 flex-1 overflow-y-auto px-3 pb-4">
