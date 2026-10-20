@@ -15,6 +15,13 @@
       "when": 1792533325632,
       "tag": "0001_push",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792535515395,
+      "tag": "0002_drill_plans",
+      "breakpoints": true
     }
   ]
 }

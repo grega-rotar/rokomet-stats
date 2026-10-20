@@ -6,7 +6,8 @@ import { describeCompetition, positionLabel, shortName, teamName } from "@/lib/s
 import { team } from "@/lib/stats/queries";
 import { MatchRow } from "../../match-row";
 import { FollowButton } from "../../push";
-import { Card, Empty, GoalFrame, PageLoading, PageTitle, PlayerLink, ResultPill } from "../../ui";
+import { TeamGoal } from "@/components/goal/team-goal";
+import { Card, Empty, PageLoading, PageTitle, PlayerLink, ResultPill } from "../../ui";
 import { TeamEloCard } from "../../elo-ui";
 import { AskAbout } from "../../chat-panel";
 
@@ -80,17 +81,16 @@ async function TeamPageBody({ params, searchParams }: PageProps<"/stats/teams/[i
       <TeamEloCard teamId={id} seasonId={t.season_id} competitionId={t.competition_id} />
 
       {hasZones ? (
-        <div className="mb-5 grid gap-5 md:grid-cols-2">
-          <Card title="Where they score">
-            <GoalFrame zones={t.attack} label="Their shots" />
-          </Card>
-          <Card title="Where they concede">
-            <GoalFrame zones={t.defence} label="Opponents' shots" />
-          </Card>
-        </div>
+        <Card title="Goal zones" aside="league = all teams in the competition" className="mb-5">
+          <TeamGoal
+            attack={{ zones: t.attack, miss: t.missAttack }}
+            defence={{ zones: t.defence, miss: t.missDefence }}
+            league={t.leagueZones}
+          />
+        </Card>
       ) : null}
 
-      <div className="grid items-start gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <Card title="Squad" aside="field players, by goals">
           {t.squad.length ? (
             <div className="-mx-1 overflow-x-auto">

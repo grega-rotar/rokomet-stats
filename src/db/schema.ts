@@ -41,6 +41,24 @@ export const messages = sqliteTable(
   (t) => [index("messages_chat").on(t.chatId, t.id)],
 );
 
+// Drill plans per player and season. Every generation is a new row; the UI shows the newest done one.
+export const drillPlans = sqliteTable(
+  "drill_plans",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    playerId: integer("player_id").notNull(),
+    seasonId: integer("season_id").notNull(),
+    status: text("status", { enum: ["running", "done", "error"] }).notNull(),
+    planJson: text("plan_json"),
+    error: text("error"),
+    costUsd: real("cost_usd"),
+    durationMs: integer("duration_ms"),
+    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    finishedAt: integer("finished_at", { mode: "timestamp_ms" }),
+  },
+  (t) => [index("drill_plans_player_season").on(t.playerId, t.seasonId, t.id)],
+);
+
 // Web push (specs/notifications.md). A device is one browser's push subscription; there are no user accounts.
 export const pushDevices = sqliteTable("push_devices", {
   id: text("id").primaryKey(),
@@ -75,3 +93,4 @@ export const pushSent = sqliteTable("push_sent", {
 
 export type Chat = typeof chats.$inferSelect;
 export type Message = typeof messages.$inferSelect;
+export type DrillPlanRow = typeof drillPlans.$inferSelect;

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { Goal2D } from "@/components/goal/goal-2d";
 import { teamName } from "@/lib/stats/groups";
 import type { Metric, Zone } from "@/lib/stats/queries";
 
@@ -142,45 +143,12 @@ export function MetricBar({ m, note, flag }: { m: Metric; note?: ReactNode; flag
   );
 }
 
-const ROWS = ["top", "mid", "bottom"] as const;
-const COLS = ["left", "center", "right"] as const;
-
-/**
- * The goal as the RZS sheet draws it, seen from the shooter: striped posts and crossbar,
- * nine zones filled by share of all goals, each with goals/shots on target.
- */
-export function GoalFrame({ zones, label }: { zones: Zone[]; label: string }) {
-  const byZone = new Map(zones.map((z) => [z.zone, z]));
+/** The goal as the RZS sheet draws it, seen from the shooter: nine zones filled by share of all goals. Flat, no WebGL. */
+export function GoalFrame({ zones, label, mode = "scored" }: { zones: Zone[]; label: string; mode?: "scored" | "conceded" }) {
   const total = zones.reduce((a, z) => a + z.goals, 0);
-  const maxShare = Math.max(0.0001, ...zones.map((z) => z.goals / Math.max(1, total)));
   return (
     <figure>
-      <div className="goal-frame mx-auto max-w-sm">
-        <div className="grid grid-cols-3 grid-rows-3 overflow-hidden rounded-t-sm bg-white">
-          {ROWS.flatMap((r) =>
-            COLS.map((c) => {
-              const z = byZone.get(`${r}_${c}`);
-              const share = z && total ? z.goals / total : 0;
-              return (
-                <div
-                  key={`${r}_${c}`}
-                  className="relative flex aspect-[3/2] flex-col items-center justify-center border border-dashed border-line"
-                  title={`${r} ${c}: ${z?.goals ?? 0} goals from ${z?.shots ?? 0} shots on target`}
-                >
-                  <div className="absolute inset-0 bg-court" style={{ opacity: (share / maxShare) * 0.85 }} aria-hidden />
-                  <span className="relative font-display text-lg font-extrabold tabular-nums text-slate-deep">
-                    {z?.goals ?? 0}
-                    <span className="text-xs font-semibold text-slate/70">/{z?.shots ?? 0}</span>
-                  </span>
-                  <span className="relative text-[11px] font-semibold text-slate/70 tabular-nums">
-                    {total ? `${Math.round(share * 100)}%` : ""}
-                  </span>
-                </div>
-              );
-            }),
-          )}
-        </div>
-      </div>
+      <Goal2D data={{ mode, zones }} />
       <figcaption className="mt-3 text-center text-xs text-muted">
         {label} · {total} goals with a zone · shooter&apos;s view · 7m not included
       </figcaption>

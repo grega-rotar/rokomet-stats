@@ -173,6 +173,105 @@ body {
   }
 }
 
+/* ---------- Training plan: court labels, loading shimmer, entrance animations ---------- */
+.court-label {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  white-space: nowrap;
+  color: #fff;
+  background: var(--color-slate);
+  box-shadow: 0 1px 2px rgb(30 43 56 / 0.25);
+  user-select: none;
+}
+.court-label-attack {
+  background: var(--color-sky-dark);
+}
+.court-label-keeper {
+  background: var(--color-court);
+  color: var(--color-slate-deep);
+}
+.court-label-coach {
+  background: var(--color-muted);
+}
+.court-label-focus {
+  background: var(--color-court);
+  color: var(--color-slate-deep);
+  outline: 2px solid #fff;
+}
+
+@keyframes court-shimmer {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+.court-shimmer {
+  background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.55) 50%, transparent 70%) 0 0 / 200% 100% no-repeat, #e4e9ef;
+  animation: court-shimmer 1.6s ease-in-out infinite;
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise-in {
+  animation: rise-in 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/* running state: a line sweeping along the 6m arc */
+@keyframes arc-draw {
+  0% {
+    stroke-dashoffset: 40;
+  }
+  100% {
+    stroke-dashoffset: -40;
+  }
+}
+.arc-draw {
+  stroke-dasharray: 10 30;
+  animation: arc-draw 2.2s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .court-shimmer,
+  .rise-in,
+  .arc-draw {
+    animation: none;
+  }
+}
+
+/* court tooltips (player role, step caption) and the hall vignette */
+.court-tip {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 15px;
+  white-space: nowrap;
+  color: #fff;
+  background: rgb(30 43 56 / 0.92);
+  box-shadow: 0 2px 6px rgb(30 43 56 / 0.25);
+  z-index: 30;
+}
+.court-tip strong {
+  font-weight: 700;
+}
+.court-vignette {
+  background: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 60%, rgb(30 43 56 / 0.22) 100%);
+}
 /* Tailwind 4 leaves buttons on the default arrow; everything clickable gets the hand. */
 @layer base {
   button:not(:disabled),
