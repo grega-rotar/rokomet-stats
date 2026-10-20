@@ -47,13 +47,13 @@ export function PageTitle({
   title,
   sub,
   facts = [],
-  actions,
+  action,
 }: {
   eyebrow?: ReactNode;
   title: ReactNode;
   sub?: ReactNode;
   facts?: Fact[];
-  actions?: ReactNode;
+  action?: ReactNode;
 }) {
   return (
     <header className="mb-6">
@@ -63,7 +63,7 @@ export function PageTitle({
           <h1 className="font-display text-2xl font-bold tracking-tight text-slate md:text-3xl">{title}</h1>
           {sub && <div className="mt-1 text-muted">{sub}</div>}
         </div>
-        {actions && <div className="flex shrink-0 gap-2">{actions}</div>}
+        {action && <div className="flex shrink-0 gap-2">{action}</div>}
       </div>
       <Facts items={facts} />
     </header>

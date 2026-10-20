@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { describeCompetition, positionLabel, shortName, teamName } from "@/lib/stats/groups";
 import { team } from "@/lib/stats/queries";
 import { MatchRow } from "../../match-row";
+import { FollowButton } from "../../push";
 import { Card, Empty, GoalFrame, PageTitle, PlayerLink, ResultPill } from "../../ui";
 
 const MATCHES_STEP = 12;
@@ -36,6 +37,7 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/sta
         }
         title={teamName(t.name)}
         sub={describeCompetition(t.competition)}
+        action={<FollowButton kind="team" refId={id} label={teamName(t.name)} />}
         facts={[
           { label: "Matches", value: played.length },
           { label: "Won · drawn · lost", value: `${count("W")} · ${count("D")} · ${count("L")}` },
