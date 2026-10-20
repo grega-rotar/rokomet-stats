@@ -198,3 +198,42 @@ export function PageLoading() {
     </div>
   );
 }
+
+/**
+ * A hover / focus bubble in place of the browser's title tooltip. CSS only, so it works in
+ * server components. The trigger is focusable, so keyboard and touch can open it too.
+ */
+export function Tip({
+  tip,
+  children,
+  className = "",
+  align = "center",
+}: {
+  tip: ReactNode;
+  children: ReactNode;
+  className?: string;
+  align?: "start" | "center" | "end";
+}) {
+  const side = align === "start" ? "left-0" : align === "end" ? "right-0" : "left-1/2 -translate-x-1/2";
+  return (
+    <div tabIndex={0} className={`no-ring group/tip relative outline-none hover:z-30 focus:z-30 ${className}`}>
+      {children}
+      <div
+        role="tooltip"
+        className={`pointer-events-none invisible absolute bottom-full z-30 mb-2 w-max max-w-64 translate-y-1 rounded-xl bg-slate-deep px-3 py-2 text-left text-xs font-normal leading-relaxed text-white/80 opacity-0 shadow-lg transition duration-150 group-hover/tip:visible group-hover/tip:translate-y-0 group-hover/tip:opacity-100 group-focus/tip:visible group-focus/tip:translate-y-0 group-focus/tip:opacity-100 ${side}`}
+      >
+        {tip}
+      </div>
+    </div>
+  );
+}
+
+/** A small turning ring for "working on it". */
+export function Spinner({ className = "size-3.5" }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={`inline-block shrink-0 animate-spin rounded-full border-2 border-current border-r-transparent motion-reduce:animate-none ${className}`}
+    />
+  );
+}
