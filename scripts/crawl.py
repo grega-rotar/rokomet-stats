@@ -50,6 +50,8 @@ CREATE TABLE IF NOT EXISTS team_zones (match_id INTEGER, side TEXT, zone TEXT, g
 CREATE TABLE IF NOT EXISTS team_shooting (match_id INTEGER, side TEXT, goals_7m INTEGER, shots_7m INTEGER,
     miss_over INTEGER, miss_left INTEGER, miss_right INTEGER, zone_goals INTEGER, PRIMARY KEY (match_id, side));
 CREATE TABLE IF NOT EXISTS checks (match_id INTEGER, name TEXT, ok INTEGER, detail TEXT, PRIMARY KEY (match_id, name));
+CREATE TABLE IF NOT EXISTS crawl_runs (started_at TEXT, finished_at TEXT, season_id INTEGER, matches_new INTEGER,
+    errors INTEGER);
 """
 
 
@@ -179,6 +181,7 @@ def main():
     db = sqlite3.connect(os.path.join(DATA, "stats.db"), timeout=120)
     db.execute("PRAGMA journal_mode = WAL")  # the app reads while the crawler writes
     db.executescript(SCHEMA)
+    started, new, errors = time.strftime("%Y-%m-%dT%H:%M:%S%z"), 0, 0
     all_seasons = api("/seasons", fresh=True)  # newest first
     season = all_seasons[0] if arg == "current" else next(s for s in all_seasons if s["id"] == int(arg))
     sid = season["id"]
@@ -206,11 +209,16 @@ def main():
                 try:
                     prefetch(m["id"], deep)
                     load_match(db, m, sid, lid, deep)
+                    db.execute("DELETE FROM checks WHERE match_id=? AND name='load'", (m["id"],))  # earlier failure
                     loaded += 1
                 except Exception as ex:
                     check(db, m["id"], "load", False, f"{type(ex).__name__}: {ex}")
+                    errors += 1
                 db.commit()
+        new += loaded
         print(f"[{n}/{len(leagues)}] {name}: {loaded} new matches{' (deep)' if deep else ''}", flush=True)
+    db.execute("INSERT INTO crawl_runs VALUES (?,?,?,?,?)",
+               (started, time.strftime("%Y-%m-%dT%H:%M:%S%z"), sid, new, errors))  # one row per shard process
     db.commit()
 
 

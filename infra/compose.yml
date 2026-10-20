@@ -41,8 +41,14 @@ services:
       CRAWL_INTERVAL_SECONDS: 21600
       CRAWL_SHARDS: 3
       CRAWL_HISTORY: "72 71"
+      # After each crawl: scripts/review.py explains failed checks (AI only where no rule fits) and audits a sample
+      # once a week. Same claude-pool accounts and usage state (/data/claude-pool-state.json) as the app.
+      CLAUDE_POOL_SERVER_ID: t4a
+      REVIEW_MAX_RUNS: 20
+      AUDIT_SAMPLE: 10
     volumes:
       - app_data:/data
+      - ./claude-pool:/home/app/.config/claude-pool:ro
 
 volumes:
   caddy_data:
