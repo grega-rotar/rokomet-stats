@@ -31,7 +31,7 @@ export default function StatsLayout({ children }: LayoutProps<"/stats">) {
     <div className="flex min-h-full flex-col">
       <header className="flex h-14 shrink-0 items-center gap-3 bg-slate-deep px-3 md:gap-5 md:px-5">
         <Link href="/stats" aria-label="Stats overview">
-          <Wordmark />
+          <Wordmark dark />
         </Link>
         <nav className="flex flex-1 gap-1 overflow-x-auto [scrollbar-width:none]">
           {NAV.map((n) => (
