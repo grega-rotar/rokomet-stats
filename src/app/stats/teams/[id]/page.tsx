@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { team } from "@/lib/stats/queries";
 import { Card, Empty, GoalFrame, PageTitle, PlayerLink, TeamLink } from "../../ui";
+import { TeamEloCard } from "../../elo-ui";
 
 export default async function TeamPage({ params }: PageProps<"/stats/teams/[id]">) {
   await connection(); // stats.db changes under us: never prerender
@@ -21,6 +22,8 @@ export default async function TeamPage({ params }: PageProps<"/stats/teams/[id]"
         sub={`${played.length} matches · ${won} won`}
       />
 
+      <TeamEloCard teamId={id} seasonId={t.season_id} competitionId={t.competition_id} />
+
       {hasZones ? (
         <div className="mb-6 grid gap-6 md:grid-cols-2">
           <Card title="Where they score">
@@ -38,7 +41,7 @@ export default async function TeamPage({ params }: PageProps<"/stats/teams/[id]"
         </Card>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr]">
+      <div className="grid gap-6 lg:grid-cols-[1fr_1.2fr] [&>*]:min-w-0">
         <Card title="Squad" aside="field players, by goals">
           {t.squad.length ? (
             <table className="w-full text-sm tabular-nums">
