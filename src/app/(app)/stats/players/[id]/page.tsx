@@ -1,12 +1,23 @@
 import { connection } from "next/server";
+import { Suspense } from "react";
+import { PageLoading } from "../../ui";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { MIN_SHOTS, playerProfile, playerSeasonIds, similarPlayers } from "@/lib/stats/queries";
 import { TYPE_GAP, TYPE_MIN } from "@/lib/stats/shot-types";
 import { Card, Empty, MetricBar, PageTitle, PlayerLink, TeamLink } from "../../ui";
 import { Drills } from "./drills";
+import { AskAbout } from "../../chat-panel";
 
-export default async function PlayerPage({ params, searchParams }: PageProps<"/stats/players/[id]">) {
+export default function PlayerPage(props: PageProps<"/stats/players/[id]">) {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <PlayerPageBody {...props} />
+    </Suspense>
+  );
+}
+
+async function PlayerPageBody({ params, searchParams }: PageProps<"/stats/players/[id]">) {
   await connection(); // stats.db changes under us: never prerender
   const id = Number((await params).id);
   const seasonsPlayed = Number.isFinite(id) ? playerSeasonIds(id) : [];
@@ -20,6 +31,16 @@ export default async function PlayerPage({ params, searchParams }: PageProps<"/s
 
   return (
     <>
+      <AskAbout
+        label={p.name}
+        prefix={`About player ${p.name} (player_id ${id}, ${p.position}, ${p.team}, season ${seasonsPlayed.find((s) => s.id === seasonId)?.name ?? ""}):`}
+        examples={[
+          { label: "Weak spots + drills", text: "What are the weak spots, and which 3 drills would help most?" },
+          { label: "Plays like", text: "Which players in the league play most like this player?" },
+          { label: "Vs the best", text: "How does this player compare with the best players in the same position?" },
+          { label: "Form", text: "How has the form been over the last matches?" },
+        ]}
+      />
       <PageTitle
         eyebrow={p.position}
         title={p.name}

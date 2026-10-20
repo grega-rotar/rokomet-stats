@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { Suspense, type ReactNode } from "react";
+import { PageLoading } from "../ui";
 import { connection } from "next/server";
 import { checkRates, coverage, crawlRuns, failures, latestAudit, type Coverage, type Failure } from "@/lib/stats/quality";
 import { auditFieldLabel, checkGroup, checkLabel, formatStamp, kindLabel, pct } from "@/lib/stats/quality-format";
@@ -112,7 +113,15 @@ function CoverageTable({ rows }: { rows: Coverage[] }) {
   );
 }
 
-export default async function DataPage() {
+export default function DataPage() {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <DataPageBody />
+    </Suspense>
+  );
+}
+
+async function DataPageBody() {
   await connection(); // stats.db changes under us: never prerender
   const cov = coverage();
   if (!cov.length) return <PageTitle title="No data yet" sub="The crawler hasn't filled the stats database yet." />;
