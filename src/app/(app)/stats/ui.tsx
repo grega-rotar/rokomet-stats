@@ -1,26 +1,82 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { teamName } from "@/lib/stats/groups";
 import type { Metric, Zone } from "@/lib/stats/queries";
 
 export function Card({ title, aside, children, className = "" }: { title: string; aside?: ReactNode; children: ReactNode; className?: string }) {
   return (
     <section className={`rounded-2xl bg-white shadow-sm ring-1 ring-line ${className}`}>
-      <div className="flex items-baseline justify-between gap-3 px-5 pt-4">
-        <h2 className="font-display text-sm font-bold text-slate">{title}</h2>
+      <div className="flex items-baseline justify-between gap-3 px-5 pt-4 md:px-6 md:pt-5">
+        <h2 className="font-display text-[0.95rem] font-bold text-slate">{title}</h2>
         {aside && <div className="text-xs text-muted">{aside}</div>}
       </div>
-      <div className="px-5 pt-3 pb-5">{children}</div>
+      <div className="px-5 pb-5 pt-3 md:px-6 md:pb-6">{children}</div>
     </section>
   );
 }
 
-export function PageTitle({ eyebrow, title, sub }: { eyebrow?: ReactNode; title: string; sub?: ReactNode }) {
+export type Fact = { label: string; value: ReactNode; tone?: "good" | "bad" };
+
+/** Small figures under a page title: matches, wins, goals. One look on every stats page. */
+export function Facts({ items }: { items: Fact[] }) {
+  if (!items.length) return null;
   return (
-    <div className="mb-6">
-      {eyebrow && <div className="text-sm font-semibold text-sky-dark">{eyebrow}</div>}
-      <h1 className="font-display text-2xl font-bold tracking-tight text-slate md:text-3xl">{title}</h1>
-      {sub && <div className="mt-1 text-muted">{sub}</div>}
-    </div>
+    <dl className="mt-4 flex flex-wrap gap-2">
+      {items.map((f) => (
+        <div key={f.label} className="min-w-[5.5rem] rounded-xl bg-white px-3.5 py-2 shadow-sm ring-1 ring-line">
+          <dt className="text-[0.7rem] font-semibold uppercase tracking-wider text-muted">{f.label}</dt>
+          <dd
+            className={`font-display text-lg font-bold tabular-nums ${
+              f.tone === "good" ? "text-[#5d7a12]" : f.tone === "bad" ? "text-foul" : "text-slate"
+            }`}
+          >
+            {f.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/**
+ * The header of every stats page: eyebrow (where you are), title, one plain line, figures,
+ * and room on the right for a control (season, filters).
+ */
+export function PageTitle({
+  eyebrow,
+  title,
+  sub,
+  facts = [],
+  actions,
+}: {
+  eyebrow?: ReactNode;
+  title: ReactNode;
+  sub?: ReactNode;
+  facts?: Fact[];
+  actions?: ReactNode;
+}) {
+  return (
+    <header className="mb-6">
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          {eyebrow && <div className="text-sm font-semibold text-sky-dark">{eyebrow}</div>}
+          <h1 className="font-display text-2xl font-bold tracking-tight text-slate md:text-3xl">{title}</h1>
+          {sub && <div className="mt-1 text-muted">{sub}</div>}
+        </div>
+        {actions && <div className="flex shrink-0 gap-2">{actions}</div>}
+      </div>
+      <Facts items={facts} />
+    </header>
+  );
+}
+
+/** W / D / L as a small pill (team form, match lists). */
+export function ResultPill({ result }: { result: "W" | "D" | "L" }) {
+  const style = result === "W" ? "bg-court text-slate-deep" : result === "L" ? "bg-foul text-white" : "bg-line text-slate";
+  return (
+    <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-md font-display text-xs font-extrabold ${style}`} title={{ W: "Won", D: "Draw", L: "Lost" }[result]}>
+      {result}
+    </span>
   );
 }
 
@@ -35,7 +91,23 @@ export function PlayerLink({ id, name }: { id: number; name: string }) {
 export function TeamLink({ id, name }: { id: number; name: string }) {
   return (
     <Link href={`/stats/teams/${id}`} className="hover:text-sky-dark hover:underline">
-      {name}
+      {teamName(name)}
+    </Link>
+  );
+}
+
+/** "Show more" at the end of a list: links to the same page with a bigger limit, keeping the scroll position. */
+export function ShowMore({ href, children = "Show more" }: { href: string; children?: ReactNode }) {
+  return (
+    <Link
+      href={href}
+      scroll={false}
+      className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-floor py-2.5 text-sm font-semibold text-slate transition hover:bg-line"
+    >
+      {children}
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <path d="M6 9l6 6 6-6" />
+      </svg>
     </Link>
   );
 }

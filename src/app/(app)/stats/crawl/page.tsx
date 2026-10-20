@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { connection } from "next/server";
 import { all } from "@/lib/stats/db";
 import { Card, Empty, PageTitle } from "../ui";
@@ -26,6 +28,91 @@ const ago = (iso: string) => {
   return s < 90 ? `${s}s ago` : s < 5400 ? `${Math.round(s / 60)} min ago` : `${Math.round(s / 3600)} h ago`;
 };
 
+type SeasonState = { id: number; name: string; state: "done" | "running" | "waiting"; part: number };
+
+/**
+ * Every season RZS lists (crawl_seasons, written by crawl.py) with how far it is.
+ * Done = crawler-loop.sh left crawl-<id>.done in the data folder; the current season is
+ * re-crawled every run, so it counts as done once it has matches and isn't running.
+ */
+function seasonStates(running: Progress[], stored: SeasonRow[]): SeasonState[] {
+  const list = safe<{ id: number; name: string; pos: number }>("SELECT id, name, pos FROM crawl_seasons ORDER BY pos");
+  const dir = process.env.STATS_DATA_DIR ?? "./data";
+  return list.map((x) => {
+    const live = running.filter((p) => p.season === x.name);
+    if (live.length) {
+      const done = live.reduce((a, p) => a + p.leagues_done, 0);
+      const total = live.reduce((a, p) => a + p.leagues_total, 0);
+      return { id: x.id, name: x.name, state: "running", part: total ? done / total : 0 };
+    }
+    const finished =
+      existsSync(join(dir, `crawl-${x.id}.done`)) || (x.pos === 0 && stored.some((r) => r.season_id === x.id && r.matches > 0));
+    return { id: x.id, name: x.name, state: finished ? "done" : "waiting", part: finished ? 1 : 0 };
+  });
+}
+
+const shortSeason = (name: string) => name.replace(/^20(\d\d)\/20(\d\d)$/, "$1/$2");
+
+function Overall({ states, running, total }: { states: SeasonState[]; running: Progress[]; total: number }) {
+  // Before the first crawl that writes crawl_seasons, show this run only.
+  const runDone = running.reduce((a, p) => a + p.leagues_done, 0);
+  const runTotal = running.reduce((a, p) => a + p.leagues_total, 0);
+  const share = states.length ? states.reduce((a, x) => a + x.part, 0) / states.length : runTotal ? runDone / runTotal : 0;
+  const pct = Math.floor(share * 100);
+  const doneCount = states.filter((x) => x.state === "done").length;
+  const now = states.find((x) => x.state === "running");
+  return (
+    <section className="mb-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-line md:p-6">
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+        <div>
+          <div className="text-sm font-semibold text-sky-dark">{states.length ? "All seasons" : "This run"}</div>
+          <div className="font-display text-5xl font-extrabold tracking-tight text-slate tabular-nums">
+            {pct}
+            <span className="text-2xl text-muted">%</span>
+          </div>
+        </div>
+        <dl className="grid grid-cols-3 gap-x-6 text-right">
+          <div>
+            <dt className="text-xs text-muted">Seasons done</dt>
+            <dd className="font-display text-xl font-bold text-slate tabular-nums">{states.length ? `${doneCount}/${states.length}` : "–"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted">Competitions this run</dt>
+            <dd className="font-display text-xl font-bold text-slate tabular-nums">{runTotal ? `${runDone}/${runTotal}` : "–"}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-muted">Matches stored</dt>
+            <dd className="font-display text-xl font-bold text-slate tabular-nums">{total.toLocaleString("sl-SI")}</dd>
+          </div>
+        </dl>
+      </div>
+      <div className="mt-4 h-3 overflow-hidden rounded-full bg-floor" role="progressbar" aria-label="Crawled" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+        <div className="h-full rounded-full bg-gradient-to-r from-sky to-court transition-[width] duration-700" style={{ width: `${Math.max(pct, 1)}%` }} />
+      </div>
+      <p className="mt-2 text-sm text-muted">
+        {now ? `Now crawling ${now.name} (${Math.round(now.part * 100)}%)` : running.length ? "Crawling" : "Idle until the next run"}
+        {states.length ? ` · newest first, back to ${states[states.length - 1].name}` : ""}
+      </p>
+      {states.length > 0 && (
+        <ol className="mt-4 grid grid-cols-[repeat(auto-fill,minmax(4rem,1fr))] gap-1.5" aria-label="Seasons">
+          {states.map((x) => (
+            <li
+              key={x.id}
+              title={`${x.name}: ${x.state === "running" ? `${Math.round(x.part * 100)}% done` : x.state}`}
+              className={`relative overflow-hidden rounded-lg px-2 py-1.5 text-center text-[0.7rem] font-semibold tabular-nums ${
+                x.state === "done" ? "bg-sky text-white" : x.state === "running" ? "bg-floor text-slate ring-2 ring-court" : "bg-floor text-muted"
+              }`}
+            >
+              {x.state === "running" && <span className="absolute inset-y-0 left-0 bg-court/40" style={{ width: `${x.part * 100}%` }} aria-hidden />}
+              <span className="relative">{shortSeason(x.name)}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
+  );
+}
+
 export default async function CrawlPage() {
   await connection();
   const progress = safe<Progress>("SELECT * FROM crawl_progress ORDER BY state = 'running' DESC, updated_at DESC");
@@ -42,6 +129,7 @@ export default async function CrawlPage() {
   );
   const running = progress.filter(isLive);
   const total = seasons.reduce((a, s) => a + s.matches, 0);
+  const states = seasonStates(running, seasons);
 
   return (
     <>
@@ -55,6 +143,8 @@ export default async function CrawlPage() {
             : `Idle · ${total.toLocaleString("sl-SI")} matches stored · the crawler runs every 6 hours`
         }
       />
+
+      <Overall states={states} running={running} total={total} />
 
       <Card title="Crawlers" className="mb-6" aside="one row per process">
         {progress.length ? (
