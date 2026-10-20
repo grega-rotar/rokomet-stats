@@ -1,11 +1,20 @@
 import { connection } from "next/server";
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { positionLabel, shortName, teamName } from "@/lib/stats/groups";
 import { match, matchFlow, matchKeepers, matchPlayers, type MatchKeeper, type MatchPlayer } from "@/lib/stats/match";
-import { Card, Empty, PlayerLink, TeamLink } from "../../ui";
+import { Card, Empty, PageLoading, PlayerLink, TeamLink } from "../../ui";
 
-export default async function MatchPage({ params }: PageProps<"/stats/matches/[id]">) {
+export default function MatchPage(props: PageProps<"/stats/matches/[id]">) {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <MatchPageBody {...props} />
+    </Suspense>
+  );
+}
+
+async function MatchPageBody({ params }: PageProps<"/stats/matches/[id]">) {
   await connection(); // stats.db changes under us: never prerender
   const id = Number((await params).id);
   const m = Number.isFinite(id) ? match(id) : undefined;

@@ -1,4 +1,5 @@
 // Who gets which push for a batch of new results (specs/notifications.md). Pure: no database, no network.
+import { shortName, teamName } from "@/lib/stats/groups";
 
 export type NewMatch = {
   id: number;
@@ -25,7 +26,7 @@ export type Push = { deviceId: string; payload: Payload };
 export const MAX_SEPARATE = 3;
 
 export function scoreLine(m: NewMatch): string {
-  return `${m.home} ${m.home_goals}:${m.away_goals} ${m.away}`;
+  return `${teamName(m.home)} ${m.home_goals}:${m.away_goals} ${teamName(m.away)}`;
 }
 
 export function playerText(p: PlayerLine): string {
@@ -36,7 +37,7 @@ export function playerText(p: PlayerLine): string {
 }
 
 function matchPayload(m: NewMatch, players: PlayerLine[], url: string): Payload {
-  const where = m.round ? `${m.competition} · round ${m.round}` : m.competition;
+  const where = m.round ? `${shortName(m.competition)} · round ${m.round}` : shortName(m.competition);
   return { title: scoreLine(m), body: [where, ...players.map(playerText)].join("\n"), url, tag: `match-${m.id}` };
 }
 

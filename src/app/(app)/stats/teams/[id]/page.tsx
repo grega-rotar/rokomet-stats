@@ -1,4 +1,5 @@
 import { connection } from "next/server";
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { describeCompetition, positionLabel, shortName, teamName } from "@/lib/stats/groups";
@@ -6,11 +7,21 @@ import { team } from "@/lib/stats/queries";
 import { MatchRow } from "../../match-row";
 import { FollowButton } from "../../push";
 import { TeamGoal } from "@/components/goal/team-goal";
-import { Card, Empty, PageTitle, PlayerLink, ResultPill } from "../../ui";
+import { Card, Empty, PageLoading, PageTitle, PlayerLink, ResultPill } from "../../ui";
+import { TeamEloCard } from "../../elo-ui";
+import { AskAbout } from "../../chat-panel";
 
 const MATCHES_STEP = 12;
 
-export default async function TeamPage({ params, searchParams }: PageProps<"/stats/teams/[id]">) {
+export default function TeamPage(props: PageProps<"/stats/teams/[id]">) {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <TeamPageBody {...props} />
+    </Suspense>
+  );
+}
+
+async function TeamPageBody({ params, searchParams }: PageProps<"/stats/teams/[id]">) {
   await connection(); // stats.db changes under us: never prerender
   const id = Number((await params).id);
   const sp = await searchParams;
@@ -30,6 +41,16 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/sta
 
   return (
     <>
+      <AskAbout
+        label={teamName(t.name)}
+        prefix={`About team ${t.name} (team_id ${id}, ${t.competition}):`}
+        examples={[
+          { label: "Form + Elo", text: "How is the form and how has the Elo rating moved this season?" },
+          { label: "Goal zones", text: "Where in the goal do they score and concede most, compared with the league?" },
+          { label: "Key players", text: "Who are the key players, and where is the squad weakest?" },
+          { label: "Vs the top", text: "How would they do against the top 3 teams of the league, going by Elo?" },
+        ]}
+      />
       <PageTitle
         eyebrow={
           <Link href={`/stats?season=${t.season_id}&comp=${t.competition_id}`} className="hover:underline">
@@ -56,6 +77,8 @@ export default async function TeamPage({ params, searchParams }: PageProps<"/sta
           },
         ]}
       />
+
+      <TeamEloCard teamId={id} seasonId={t.season_id} competitionId={t.competition_id} />
 
       {hasZones ? (
         <Card title="Goal zones" aside="league = all teams in the competition" className="mb-5">

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { PlayerProfile } from "@/lib/stats/queries";
+import { TYPE_MIN } from "@/lib/stats/shot-types";
 import { DrillPlan } from "./plan";
 
 // The prompt for one drill plan. Pure, so a script can print it. Contract: plan.ts, spec: specs/drills.md.
@@ -36,6 +37,12 @@ export function facts(prof: PlayerProfile): string[] {
     `Player: ${p.name}, ${pos.en} (${p.position}), ${p.team} (${prof.competitions.join(", ")}).`,
     `Season so far: ${p.matches} matches, ${p.goals} goals from ${p.shots} shots, field ${p.goals - p.goals_7m}/${field}, 7m ${p.goals_7m}/${p.shots_7m}, ${p.two_min} two-minute suspensions, ${p.yellow} yellow, ${p.red} red.`,
     ...prof.metrics.map((m) => `${m.label} [${m.key}]: ${fmt(m.me, m.unit)} (average for the position, ${prof.peers} players: ${fmt(m.avg, m.unit)}).`),
+    prof.shotTypes
+      ? `Shot types from the match stats sheets (${prof.shotTypes.matches} matches; under ${TYPE_MIN} attempts of a type is a small sample; a focus on a type uses metric [field]): ` +
+        prof.shotTypes.rows
+          .map((r) => `${r.key} ${r.goals}/${r.shots}${r.pct === null ? "" : ` = ${r.pct.toFixed(0)}%`} (position average ${r.avg === null ? "n/a" : `${r.avg.toFixed(0)}%`})`)
+          .join(", ") + `; ${prof.shotTypes.misses} shots missed the goal.`
+      : "No shot types (6m / wing / 9m) for this player: they exist only for the top senior competitions.",
     prof.weakSpots.length
       ? `Weak spots found in the data: ${prof.weakSpots.map((w) => `${w.title}: ${w.detail}`).join(" ")}`
       : prof.enoughData

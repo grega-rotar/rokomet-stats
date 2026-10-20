@@ -24,7 +24,7 @@ services:
     environment:
       CLAUDE_POOL_SERVER_ID: t4a
       # Chat Claude may only read the stats (scripts/chat-CLAUDE.md); this overrides .env.
-      CLAUDE_ALLOWED_TOOLS: "Bash(python3 /app/scripts/query.py:*),Bash(python3 /app/scripts/players.py:*)"
+      CLAUDE_ALLOWED_TOOLS: "Bash(python3 /app/scripts/query.py:*),Bash(python3 /app/scripts/players.py:*),Bash(python3 /app/scripts/teams.py:*)"
       # Bash is the only tool that exists; --allowedTools above limits it to the two read-only scripts.
       CLAUDE_TOOLS: Bash
       CLAUDE_PROMPT_FILE: /app/scripts/chat-CLAUDE.md
@@ -44,8 +44,14 @@ services:
       CRAWL_INTERVAL_SECONDS: 21600
       CRAWL_SHARDS: 3
       CRAWL_HISTORY: all  # every past season once, newest first (about 15-20 h the first time)
+      # After each crawl: scripts/review.py explains failed checks (AI only where no rule fits) and audits a sample
+      # once a week. Same claude-pool accounts and usage state (/data/claude-pool-state.json) as the app.
+      CLAUDE_POOL_SERVER_ID: t4a
+      REVIEW_MAX_RUNS: 20
+      AUDIT_SAMPLE: 10
     volumes:
       - app_data:/data
+      - ./claude-pool:/home/app/.config/claude-pool:ro
 
 volumes:
   caddy_data:

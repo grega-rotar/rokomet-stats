@@ -2,13 +2,15 @@
 
 Usage:
   python3 scripts/players.py find NAME                 players whose name contains NAME
-  python3 scripts/players.py profile PLAYER_ID         season profile vs position average, weak spots
+  python3 scripts/players.py profile PLAYER_ID         season profile vs position average, shot types, weak spots
   python3 scripts/players.py similar PLAYER_ID [N]     most similar field players (same season)
   python3 scripts/players.py rank METRIC [POSITION] [COMPETITION_TEXT]
-        METRIC: goals | shooting | 7m | goals_per_match | two_min ; POSITION e.g. "Levo krilo"
+        METRIC: goals | shooting | 7m | goals_per_match | two_min | 9m | 6m | wing ; POSITION e.g. "Levo krilo"
 Numbers come only from stats.db. Shooting % rankings are shrunk toward the average (K shots of the
-average), so a player with 2/2 doesn't rank as 100%. Built from JSON player stats; shot types
-(6m / wing / 9m) need the PDF player table (scripts/parse_players.py) and are not in here yet.
+average), so a player with 2/2 doesn't rank as 100%. Goals, shots, 7m and cards come from the JSON player
+stats (player_match); the split by shot type (7m / 6m / wing / 9m) and misses come from the match PDF
+(player_shot_types, top senior competitions only), and each type's % is goals/shots of that PDF column.
+Same rules as src/lib/stats/queries.ts and src/lib/stats/shot-types.ts.
 """
 import math
 import os
@@ -18,6 +20,22 @@ import sys
 DB = os.environ.get("STATS_DB_PATH") or os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "stats.db")
 K = 20          # shrinkage: shots of "average" added to each player's shooting %
 MIN_SHOTS = 15  # below this, a shooting % claim isn't worth making
+TYPES = ("7m", "6m", "wing", "9m")
+TYPE_MIN = 15   # shot types: a weak spot needs 15+ attempts of that type ...
+TYPE_GAP = 10   # ... and 10+ points below the position average
+TYPE_K = 15     # rankings by type: shrink by 15 attempts of the average, 15+ attempts
+
+TYPES_SQL = """
+SELECT t.player_id, p.position, count(*) AS matches, sum(t.misses) AS misses,
+       sum(t.goals_7m) AS g_7m, sum(t.shots_7m) AS s_7m, sum(t.goals_6m) AS g_6m, sum(t.shots_6m) AS s_6m,
+       sum(t.goals_wing) AS g_wing, sum(t.shots_wing) AS s_wing, sum(t.goals_9m) AS g_9m, sum(t.shots_9m) AS s_9m
+FROM player_shot_types t
+JOIN player_match p ON p.match_id = t.match_id AND p.side = t.side AND p.player_id = t.player_id
+JOIN matches m ON m.id = t.match_id
+JOIN competitions c ON c.id = m.competition_id AND c.season_id = m.season_id
+WHERE p.is_goalkeeper = 0 {where}
+GROUP BY t.player_id
+"""
 
 SEASON_SQL = """
 SELECT p.player_id, p.first_name || ' ' || p.last_name AS name, p.position,
@@ -38,6 +56,14 @@ GROUP BY p.player_id
 def rows(db, where="", args=()):
     db.row_factory = sqlite3.Row
     return [dict(r) for r in db.execute(SEASON_SQL.format(where=where), args)]
+
+
+def shot_types(db, where="", args=()):
+    """{player_id: row} of summed PDF shot types; empty if the table isn't there yet."""
+    if not db.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='player_shot_types'").fetchone():
+        return {}
+    db.row_factory = sqlite3.Row
+    return {r["player_id"]: dict(r) for r in db.execute(TYPES_SQL.format(where=where), args)}
 
 
 def pct(g, s):
@@ -93,6 +119,24 @@ def profile(db, pid):
         FROM player_match p JOIN matches m ON m.id=p.match_id WHERE p.player_id=? ORDER BY m.id""", (pid,)))
     print("\nmatch by match: " + ", ".join(f"{g}/{s}" for _, _, g, s in form))
 
+    mine_t = shot_types(db, "AND p.player_id = ?", (pid,)).get(pid)
+    type_weak = []
+    if mine_t and sum(mine_t[f"s_{k}"] for k in TYPES):
+        peers_t = shot_types(db, f"AND m.competition_id IN ({','.join('?' * len(comp_ids))}) AND p.position = ?",
+                             (*comp_ids, me["position"])).values()
+        typed = sum(mine_t[f"s_{k}"] for k in TYPES)
+        print(f"\nshots by type (match PDFs, {mine_t['matches']} matches; {mine_t['misses']} missed the goal):")
+        for k in TYPES:
+            g, s = mine_t[f"g_{k}"], mine_t[f"s_{k}"]
+            ag, as_ = sum(t[f"g_{k}"] for t in peers_t), sum(t[f"s_{k}"] for t in peers_t)
+            my_p, avg_p = pct(g, s), pct(ag, as_)
+            small = " (small sample)" if 0 < s < TYPE_MIN else ""
+            print(f"  {k:<5} {g:>3}/{s:<3} {fmt(my_p):>5}  vs {fmt(avg_p)}   {100 * s / typed:.0f}% of typed shots{small}")
+            if k != "7m" and s >= TYPE_MIN and my_p is not None and avg_p is not None and my_p < avg_p - TYPE_GAP:
+                type_weak.append(f"  - {k} shots: {g}/{s} ({fmt(my_p)}), position average {fmt(avg_p)} (match PDFs)")
+    else:
+        print("\nshots by type: none (PDF shot types exist only for the top senior competitions)")
+
     print("\nweak spots (only claims with enough attempts):")
     found = False
     field_shots = me["shots"] - me["shots_7m"]
@@ -104,6 +148,9 @@ def profile(db, pid):
         found = True
     if me["matches"] >= 4 and my["two"] > max(0.5, 2 * base["two"]):
         print(f"  - discipline: {my['two']:.2f} two-minute suspensions per match, average {base['two']:.2f}")
+        found = True
+    for line in type_weak:
+        print(line)
         found = True
     if not found:
         print("  - none with enough data yet" + (f" (only {field_shots} field shots)" if field_shots < MIN_SHOTS else ""))
@@ -163,11 +210,24 @@ def rank(db, metric, position=None, comp=None, n=20):
                f"7m % shrunk to avg {avg7:.0%}, 5+ attempts"),
         "two_min": (lambda p: p["two_min"], "two-minute suspensions"),
     }
+    if metric in ("9m", "6m", "wing"):
+        types = shot_types(db, where, args)
+        tg, ts = sum(t[f"g_{metric}"] for t in types.values()), sum(t[f"s_{metric}"] for t in types.values())
+        avg_t = tg / ts if ts else 0
+
+        def by_type(p):
+            t = types.get(p["player_id"])
+            if not t or t[f"s_{metric}"] < TYPE_MIN:
+                return -1
+            return (t[f"g_{metric}"] + TYPE_K * avg_t) / (t[f"s_{metric}"] + TYPE_K)
+        keys[metric] = (by_type, f"{metric} % (match PDFs) shrunk to avg {avg_t:.0%}, {TYPE_MIN}+ attempts")
     key, label = keys[metric]
     print(f"rank by {label}" + (f" | {position}" if position else "") + (f" | {comp}" if comp else ""))
     for i, p in enumerate(sorted((p for p in ps if key(p) >= 0), key=key, reverse=True)[:n], 1):
         print(f"{i:>3}. {p['name']:<28} {p['position']:<20} {p['team']:<32} {p['goals']}/{p['shots']} "
-              f"in {p['matches']}, 7m {p['goals_7m']}/{p['shots_7m']}, 2min {p['two_min']}  (id {p['player_id']})")
+              f"in {p['matches']}, 7m {p['goals_7m']}/{p['shots_7m']}, 2min {p['two_min']}"
+              + (f", {metric} {types[p['player_id']][f'g_{metric}']}/{types[p['player_id']][f's_{metric}']} = {key(p):.0%} shrunk"
+                 if metric in ("9m", "6m", "wing") else "") + f"  (id {p['player_id']})")
 
 
 def main():
