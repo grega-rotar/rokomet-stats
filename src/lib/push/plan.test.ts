@@ -28,7 +28,7 @@ describe("planPushes", () => {
     );
     expect(pushes.map((p) => p.deviceId)).toEqual(["A", "B"]);
     expect(pushes[0].payload).toEqual({
-      title: "RK KRIM 31:28 ŽRK IZOLA",
+      title: "RK Krim 31:28 ŽRK Izola",
       body: "1. NLB liga · round 7",
       url: "/stats?season=73&comp=10",
       tag: "match-1",
@@ -69,7 +69,7 @@ describe("planPushes", () => {
     const pushes = planPushes([1, 2, 3, 4, 5].map((id) => match(id)), [], [device("A", { allTop: true })]);
     expect(pushes).toHaveLength(1);
     expect(pushes[0].payload.title).toBe("5 new results");
-    expect(pushes[0].payload.body.split("\n")).toEqual(["RK KRIM 31:28 ŽRK IZOLA", "RK KRIM 31:28 ŽRK IZOLA", "RK KRIM 31:28 ŽRK IZOLA", "+2 more"]);
+    expect(pushes[0].payload.body.split("\n")).toEqual(["RK Krim 31:28 ŽRK Izola", "RK Krim 31:28 ŽRK Izola", "RK Krim 31:28 ŽRK Izola", "+2 more"]);
   });
 
   it("keeps 3 results as separate pushes", () => {
