@@ -13,12 +13,14 @@ const SYSTEM_PROMPT =
   "(RZS livestat data). Answer in the language the user writes in. Be concise.";
 
 const EXIT_EXHAUSTED = 75; // claude-pool: every account is at its usage limit
+const POOL_REFRESH_MS = 5 * 60_000; // claude-pool's own default for CLAUDE_POOL_FRESH
 
-type State = { sem: Semaphore; running: Set<string> };
+type State = { sem: Semaphore; running: Set<string>; poolRefreshedAt: number };
 const g = globalThis as unknown as { __runner?: State };
 const state = (g.__runner ??= {
   sem: new Semaphore(Number(process.env.MAX_PARALLEL_RUNS) || 6),
   running: new Set<string>(),
+  poolRefreshedAt: 0,
 });
 
 export type RunHooks = {
@@ -99,11 +101,16 @@ function spawnClaude(opts: {
   const tools = process.env.CLAUDE_ALLOWED_TOOLS?.trim();
   if (tools) args.push("--allowedTools", tools);
 
+  const bin = process.env.CLAUDE_BIN || "claude-pool";
+  refreshPoolUsage(bin);
+
   return new Promise((resolve) => {
-    const child = spawn(/*turbopackIgnore: true*/ process.env.CLAUDE_BIN || "claude-pool", args, {
+    // CLAUDE_POOL_FRESH=0: pick an account on the saved usage numbers instead of first checking every account
+    // (~3 s before each reply). refreshPoolUsage keeps those numbers fresh in the background.
+    const child = spawn(/*turbopackIgnore: true*/ bin, args, {
       cwd,
       stdio: ["pipe", "pipe", "pipe"],
-      env: process.env,
+      env: { ...process.env, CLAUDE_POOL_FRESH: "0" },
     });
     child.stdin.end(prompt);
 
@@ -161,4 +168,13 @@ function spawnClaude(opts: {
     child.on("close", (code) => finish(code));
     child.on("error", (err) => finish(null, err));
   });
+}
+
+/** At most every 5 min, checks every claude-pool account's usage in the background, so use by other apps is seen. */
+function refreshPoolUsage(bin: string) {
+  if (path.basename(bin) !== "claude-pool" || Date.now() - state.poolRefreshedAt < POOL_REFRESH_MS) return;
+  state.poolRefreshedAt = Date.now();
+  spawn(/*turbopackIgnore: true*/ bin, ["--pool-refresh"], { stdio: "ignore", detached: true, env: process.env })
+    .on("error", () => {})
+    .unref();
 }
