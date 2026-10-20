@@ -25,6 +25,9 @@ services:
       CLAUDE_POOL_SERVER_ID: t4a
       # Chat Claude may only read the stats (scripts/chat-CLAUDE.md); this overrides .env.
       CLAUDE_ALLOWED_TOOLS: "Bash(python3 /app/scripts/query.py:*),Bash(python3 /app/scripts/players.py:*)"
+      # Bash is the only tool that exists; --allowedTools above limits it to the two read-only scripts.
+      CLAUDE_TOOLS: Bash
+      CLAUDE_PROMPT_FILE: /app/scripts/chat-CLAUDE.md
     volumes:
       - app_data:/data
       - claude_home:/home/app/.claude
