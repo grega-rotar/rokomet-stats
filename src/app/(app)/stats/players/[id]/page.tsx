@@ -1,13 +1,17 @@
 import { connection } from "next/server";
 import { notFound } from "next/navigation";
-import { MIN_SHOTS, playerProfile, similarPlayers } from "@/lib/stats/queries";
+import Link from "next/link";
+import { MIN_SHOTS, playerProfile, playerSeasonIds, similarPlayers } from "@/lib/stats/queries";
 import { Card, Empty, MetricBar, PageTitle, PlayerLink, TeamLink } from "../../ui";
 import { Drills } from "./drills";
 
-export default async function PlayerPage({ params }: PageProps<"/stats/players/[id]">) {
+export default async function PlayerPage({ params, searchParams }: PageProps<"/stats/players/[id]">) {
   await connection(); // stats.db changes under us: never prerender
   const id = Number((await params).id);
-  const prof = Number.isFinite(id) ? playerProfile(id) : null;
+  const seasonsPlayed = Number.isFinite(id) ? playerSeasonIds(id) : [];
+  const asked = Number((await searchParams).season);
+  const seasonId = seasonsPlayed.some((s) => s.id === asked) ? asked : seasonsPlayed[0]?.id;
+  const prof = seasonId !== undefined ? playerProfile(id, seasonId) : null;
   if (!prof) notFound();
   const { player: p } = prof;
   const similar = similarPlayers(id);
@@ -20,6 +24,21 @@ export default async function PlayerPage({ params }: PageProps<"/stats/players/[
         title={p.name}
         sub={<><TeamLink id={p.team_id} name={p.team} /> · {prof.competitions.join(", ")}</>}
       />
+
+      {seasonsPlayed.length > 1 && (
+        <nav className="-mt-3 mb-5 flex flex-wrap gap-1.5" aria-label="Season">
+          {seasonsPlayed.map((s) => (
+            <Link
+              key={s.id}
+              href={`/stats/players/${id}?season=${s.id}`}
+              aria-current={s.id === seasonId ? "page" : undefined}
+              className={`rounded-full px-3 py-1 text-xs font-semibold ring-1 ${s.id === seasonId ? "bg-slate text-white ring-slate" : "bg-white text-slate ring-line hover:ring-sky"}`}
+            >
+              {s.name}
+            </Link>
+          ))}
+        </nav>
+      )}
 
       <dl className="mb-6 grid grid-cols-3 gap-px overflow-hidden rounded-2xl bg-line shadow-sm ring-1 ring-line sm:grid-cols-6">
         {[

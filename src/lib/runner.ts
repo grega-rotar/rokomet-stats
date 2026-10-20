@@ -26,6 +26,18 @@ How you write:
 - Answer in the language the user writes in (usually Slovenian or English).
 - Be concise. Use short tables or lists for numbers.`;
 
+// How to read the stats (tables, tools, rules): scripts/chat-CLAUDE.md, appended when CLAUDE_PROMPT_FILE is set.
+// With --setting-sources "" Claude doesn't load CLAUDE.md files itself.
+function systemPrompt(): string {
+  const file = process.env.CLAUDE_PROMPT_FILE?.trim();
+  if (!file) return SYSTEM_PROMPT;
+  try {
+    return `${SYSTEM_PROMPT}\n\n${fs.readFileSync(/*turbopackIgnore: true*/ file, "utf8")}`;
+  } catch {
+    return SYSTEM_PROMPT;
+  }
+}
+
 const EXIT_EXHAUSTED = 75; // claude-pool: every account is at its usage limit
 const POOL_REFRESH_MS = 5 * 60_000; // claude-pool's own default for CLAUDE_POOL_FRESH
 
@@ -109,7 +121,7 @@ function spawnClaude(opts: {
     "--verbose",
     "--include-partial-messages",
     "--system-prompt",
-    SYSTEM_PROMPT,
+    systemPrompt(),
     // Off: chats started before a prompt change get the current prompt on --resume, not the one they started with.
     "--system-prompt-snapshot",
     "off",
