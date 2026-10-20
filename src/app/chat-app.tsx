@@ -202,6 +202,9 @@ export function ChatApp() {
         </button>
         <Wordmark />
         <div className="flex-1" />
+        <a href="/stats" className="font-display text-xs font-bold uppercase tracking-wide text-white/70 hover:text-white">
+          Stats
+        </a>
         <button
           onClick={logout}
           className="font-display text-xs font-bold uppercase tracking-wide text-white/70 hover:text-white"

@@ -6,6 +6,9 @@ data
 infra
 specs
 scripts
+!scripts/*.py
+!scripts/*.sh
+!scripts/chat-CLAUDE.md
 .env*
 !.env.example
 *.pem

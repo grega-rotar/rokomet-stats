@@ -24,9 +24,21 @@ Checked by hand on 2026-10-20 (season 2026/2027).
 | Match detail | `GET /pregledTekme/{matchId}` | half-time score, attendance (`gledalci`), round, `id_domaci`, `id_gosti` |
 | Play-by-play | `GET /pregledAkcijTekma/{matchId}/tekma?nacinprikaza=1` | events: `minuta`, `naziv_akcije`, `ekipa` (1 home / 2 away), `sodelujoci` (player), running score |
 | Player stats, one match | `GET /tekma/{matchId}/ekipa/{teamId}/igralci?vrstaEkipe=1` (2 = away) | goals, shots, 7m, cards, 2min, position, goalkeepers separately |
-| **Stats PDF, one match** | `GET /natisniStatistikaTekme/{matchId}/tekme?&vrstTiskanja=1` | ~1 MB PDF, 4 pages. **Only source of goal zones.** |
+| **Stats PDF, one match** | `GET /natisniStatistikaTekme/{matchId}/tekme?&vrstTiskanja=1` | ~1 MB PDF, 4 pages. **Only source of goal zones and shot types.** |
+| Standings after a round | `POST /pregledLigeKrogi/{liga}/sezona/{sezona}` form `krog` | `data.lestvica[]`: points, W/D/L, goals for/against, `idEkipe` |
+| League totals | `POST /statistikaLigeSezonaKrogi/{liga}/sezona/{sezona}` form `krog` | home/away wins, goals per match, 7m %, suspensions; per-team 7m and suspension tables |
+| Top scorers | `GET /strelciLige/{liga}/sezona/{sezona}&krogLige={krog}` (note `&`, not `?`; 99 = all rounds) | every scorer: goals, **attempts** (`st_strelov`), 7m, cards, 2min, `idIgralca` |
+| Players in a league | `GET /preledIgralcevSezona/{sezona}/liga/{liga}/igralci` | all players with season totals (no attempts, no position) + team ids |
+| Clubs in a league | `GET /podatkiLiga/{liga}/sezona/{sezona}/klubi` | teams, club address (`postna_st`, `mesto`), halls with address; no coordinates |
+| Player profile | `GET /igralecPodatki/{player}/sezona/{sezona}/liga/{liga}` | name, birth date, licence, current club, loan club, season shirt number and position |
+| Player's seasons / competitions | `GET /igralecSezone/{player}/sezone`, `GET /pregledIgralciSezonaLiga/{player}/sezone/{sezona}` | season ids; competitions played that season |
+| Player, per match | `GET /npregledTekemIgralecLiga/{player}/sezona/{sezona}/liga/{liga}` | every match that season: goals, attempts, 7m, 2min, cards, `tekmaID`; plus totals |
+| Player season totals | `GET /podatkiLigaIgralecStat/{player}/sezona/{sezona}/liga/{liga}` | goals, 7m, 2min, matches; `streli` is always "0", use the call above |
+| Player career | `GET /pregledZgodovineIgralcaSelekcije/{player}`, then `POST /pregledZgodovineIgralca/{player}` form `ekipa=[selekcija ids]&sezone=[season ids]` (JSON arrays) | one row per season and age group: club, matches, goals, attempts, 7m, 2min |
 
-Not tried yet, found in the site's JS bundle: `strelciLige/...` (top scorers), `statistikakipa/...` (team stats), `razporedEkipe/...` (team schedule), `podatkiLiga/{liga}/sezona/{sezona}/klubi`, `pregledZgodovineIgralca/{id}` (POST, player history), `preledIgralcev` (POST, player search). Two routes are obfuscated (`sswuIKhEOv/...`, `kXQcq4weAvMKSTKZ/...`); leave them alone.
+Verified 2026-10-20; field meanings in [player-insights.md](player-insights.md) and [handball-glossary.md](handball-glossary.md). Player ids (`idIgralca`) are stable across seasons, age groups and competitions; team ids were the same in 2025/26 and 2026/27.
+
+Not tried yet, found in the site's JS bundle: `statistikakipa/...` (team stats), `razporedEkipe/...` (team schedule), `podatkiekipa/...` (team details), `naslednjiKrog/...` (next round), `preledIgralcev` (POST, player search). Two routes are obfuscated (`sswuIKhEOv/...`, `kXQcq4weAvMKSTKZ/...`); leave them alone.
 
 Known ids: season 2026/2027 = `73`; Liga NLB (1. SRL) = `1587`.
 
@@ -52,6 +64,10 @@ PDF layout:
 - Right half of each diagram page ("`<TEAM> V OBRAMBI`") = the opponent's shots against this team. It duplicates the other team's "V NAPADU", so skip it.
 
 Verified on all 6 matches of Liga NLB round 8 (2026/2027).
+
+## Player tables from the PDF
+
+Parser: [`scripts/parse_players.py`](../scripts/parse_players.py) (needs `pypdf`). Reads the player table and goalkeeper table (pages 1/3) and the "Ostale akcije" table (pages 2/4) by x-position, since empty cells are missing from the text layer. The PDF is a separate record from the JSON: goals agree for 96% of player rows, shot counts and saves often differ. Take goals, attempts and saves from the JSON and only the shot-type split from the PDF. Check results and details: [player-insights.md](player-insights.md#2-pdf-player-table-parser-and-how-well-it-agrees).
 
 ### Coverage by season (Liga NLB, spot-checked one match per season, 2026-10-20)
 
