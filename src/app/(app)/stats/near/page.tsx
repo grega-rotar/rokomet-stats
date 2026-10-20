@@ -1,4 +1,6 @@
 import { connection } from "next/server";
+import { Suspense } from "react";
+import { PageLoading } from "../ui";
 import { seasons } from "@/lib/stats/queries";
 import { inSlovenia, MAP_HEIGHT, MAP_WIDTH, project, SLOVENIA_PATH, type LatLon } from "@/lib/stats/geo";
 import { clubs, findPlace, hasClubs, places, type NearClub } from "@/lib/stats/teams";
@@ -46,7 +48,15 @@ function ClubMap({ list, from, near }: { list: NearClub[]; from?: LatLon; near: 
   );
 }
 
-export default async function NearPage({ searchParams }: PageProps<"/stats/near">) {
+export default function NearPage(props: PageProps<"/stats/near">) {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <NearPageBody {...props} />
+    </Suspense>
+  );
+}
+
+async function NearPageBody({ searchParams }: PageProps<"/stats/near">) {
   await connection(); // stats.db changes under us: never prerender
   const sp = await searchParams;
   const seasonId = seasons()[0]?.id;

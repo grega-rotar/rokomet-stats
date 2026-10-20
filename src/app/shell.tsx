@@ -33,6 +33,7 @@ const PAGES = [
   { href: "/stats/near", label: "Near you", exact: false, icon: <path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11zM12 12a2 2 0 100-4 2 2 0 000 4z" /> },
   { href: "/stats/data", label: "Data quality", exact: false, icon: <path d="M9 12l2 2 4-4M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z" /> },
   { href: "/stats/crawl", label: "Crawler", exact: false, icon: <path d="M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3M18 3v4h-4M6 21v-4h4" /> },
+  { href: "/diagrams", label: "How it works", exact: false, icon: <path d="M3 3h7v7H3zM14 14h7v7h-7zM10 6.5h4a3 3 0 013 3V14M6.5 10v4a3 3 0 003 3H14" /> },
 ] as const;
 
 /** The ☰ button for a page's own top bar; opens the sidebar on phones. */

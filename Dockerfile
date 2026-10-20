@@ -34,6 +34,8 @@ COPY --from=build --chown=app:app /app/.next/static ./.next/static
 COPY --from=build --chown=app:app /app/public ./public
 COPY --from=build --chown=app:app /app/drizzle ./drizzle
 COPY --from=build --chown=app:app /app/scripts ./scripts
+# Shown on /diagrams.
+COPY --from=build --chown=app:app /app/docs/diagrams ./docs/diagrams
 
 USER app
 ENV NODE_ENV=production \

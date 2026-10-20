@@ -1,9 +1,19 @@
 import { connection } from "next/server";
+import { Suspense } from "react";
+import { PageLoading } from "./ui";
 import Link from "next/link";
 import { competitions, results, searchPlayers, seasons, standings, topScorers } from "@/lib/stats/queries";
 import { Card, Empty, PageTitle, PlayerLink, TeamLink } from "./ui";
 
-export default async function StatsHome({ searchParams }: PageProps<"/stats">) {
+export default function StatsHome(props: PageProps<"/stats">) {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <StatsHomeBody {...props} />
+    </Suspense>
+  );
+}
+
+async function StatsHomeBody({ searchParams }: PageProps<"/stats">) {
   await connection(); // stats.db changes under us: never prerender
   const sp = await searchParams;
   const allSeasons = seasons();

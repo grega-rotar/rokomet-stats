@@ -1,4 +1,6 @@
 import { connection } from "next/server";
+import { Suspense } from "react";
+import { PageLoading } from "../ui";
 import { competitions, K, MIN_SHOTS, positions, RANK_METRICS, rankings, seasons, TYPE_METRICS, type RankMetric } from "@/lib/stats/queries";
 import { TYPE_K, TYPE_MIN } from "@/lib/stats/shot-types";
 import { Card, Empty, PageTitle, PlayerLink } from "../ui";
@@ -18,7 +20,15 @@ function typeNote(type: string) {
   return `Goals/shots from ${type === "wing" ? "the wing" : type} on the match stats sheets (top senior competitions only). Players with ${TYPE_MIN}+ attempts, pulled toward the average by ${TYPE_K} attempts.`;
 }
 
-export default async function RankingsPage({ searchParams }: PageProps<"/stats/rankings">) {
+export default function RankingsPage(props: PageProps<"/stats/rankings">) {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <RankingsPageBody {...props} />
+    </Suspense>
+  );
+}
+
+async function RankingsPageBody({ searchParams }: PageProps<"/stats/rankings">) {
   await connection(); // stats.db changes under us: never prerender
   const sp = await searchParams;
   const allSeasons = seasons();

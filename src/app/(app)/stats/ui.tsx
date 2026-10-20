@@ -115,3 +115,14 @@ export function GoalFrame({ zones, label }: { zones: Zone[]; label: string }) {
     </figure>
   );
 }
+
+/** Placeholder while a page reads stats.db. */
+export function PageLoading() {
+  return (
+    <div className="flex flex-col gap-4" aria-busy="true" aria-label="Loading">
+      <div className="h-9 w-64 animate-pulse rounded-xl bg-white/70 motion-reduce:animate-none" />
+      <div className="h-40 animate-pulse rounded-2xl bg-white/60 ring-1 ring-line motion-reduce:animate-none" />
+      <div className="h-64 animate-pulse rounded-2xl bg-white/60 ring-1 ring-line motion-reduce:animate-none" />
+    </div>
+  );
+}

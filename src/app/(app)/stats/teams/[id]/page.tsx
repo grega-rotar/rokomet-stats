@@ -1,11 +1,22 @@
 import { connection } from "next/server";
+import { Suspense } from "react";
+import { PageLoading } from "../../ui";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { team } from "@/lib/stats/queries";
 import { Card, Empty, GoalFrame, PageTitle, PlayerLink, TeamLink } from "../../ui";
 import { TeamEloCard } from "../../elo-ui";
+import { AskAbout } from "../../chat-panel";
 
-export default async function TeamPage({ params }: PageProps<"/stats/teams/[id]">) {
+export default function TeamPage(props: PageProps<"/stats/teams/[id]">) {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <TeamPageBody {...props} />
+    </Suspense>
+  );
+}
+
+async function TeamPageBody({ params }: PageProps<"/stats/teams/[id]">) {
   await connection(); // stats.db changes under us: never prerender
   const id = Number((await params).id);
   const t = Number.isFinite(id) ? team(id) : null;
@@ -16,6 +27,16 @@ export default async function TeamPage({ params }: PageProps<"/stats/teams/[id]"
 
   return (
     <>
+      <AskAbout
+        label={t.name}
+        prefix={`About team ${t.name} (team_id ${id}, ${t.competition}):`}
+        examples={[
+          { label: "Form + Elo", text: "How is the form and how has the Elo rating moved this season?" },
+          { label: "Goal zones", text: "Where in the goal do they score and concede most, compared with the league?" },
+          { label: "Key players", text: "Who are the key players, and where is the squad weakest?" },
+          { label: "Next opponent", text: "How would they do against the top 3 teams of the league, going by Elo?" },
+        ]}
+      />
       <PageTitle
         eyebrow={<Link href={`/stats?season=${t.season_id}&comp=${t.competition_id}`} className="hover:underline">{t.competition}</Link>}
         title={t.name}

@@ -1,11 +1,21 @@
 import { connection } from "next/server";
+import { Suspense } from "react";
+import { PageLoading } from "../ui";
 import { competitions, seasons } from "@/lib/stats/queries";
 import { K } from "@/lib/stats/elo";
 import { eloTable, eloValidation } from "@/lib/stats/teams";
 import { Change, FixtureRow, FormStrip, Sparkline } from "../elo-ui";
 import { Card, Empty, PageTitle, TeamLink } from "../ui";
 
-export default async function TeamsPage({ searchParams }: PageProps<"/stats/teams">) {
+export default function TeamsPage(props: PageProps<"/stats/teams">) {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <TeamsPageBody {...props} />
+    </Suspense>
+  );
+}
+
+async function TeamsPageBody({ searchParams }: PageProps<"/stats/teams">) {
   await connection(); // stats.db changes under us: never prerender
   const sp = await searchParams;
   const allSeasons = seasons();

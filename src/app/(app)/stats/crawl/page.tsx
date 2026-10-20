@@ -1,4 +1,6 @@
 import { connection } from "next/server";
+import { Suspense } from "react";
+import { PageLoading } from "../ui";
 import { all } from "@/lib/stats/db";
 import { Card, Empty, PageTitle } from "../ui";
 import { AutoRefresh } from "./auto-refresh";
@@ -26,7 +28,15 @@ const ago = (iso: string) => {
   return s < 90 ? `${s}s ago` : s < 5400 ? `${Math.round(s / 60)} min ago` : `${Math.round(s / 3600)} h ago`;
 };
 
-export default async function CrawlPage() {
+export default function CrawlPage() {
+  return (
+    <Suspense fallback={<PageLoading />}>
+      <CrawlPageBody />
+    </Suspense>
+  );
+}
+
+async function CrawlPageBody() {
   await connection();
   const progress = safe<Progress>("SELECT * FROM crawl_progress ORDER BY state = 'running' DESC, updated_at DESC");
   const seasons = safe<SeasonRow>(
