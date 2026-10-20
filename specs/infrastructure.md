@@ -16,13 +16,14 @@ Browser ── HTTPS (Cloudflare cert) ──> Cloudflare ── HTTPS (Origin c
 - **Gotcha: 100 s timeout.** Cloudflare closes a request that sends no bytes for ~100 s. The chat stream sends an SSE comment (`: ping`) every 20 s (see [architecture.md](architecture.md)).
 - The visitor's real IP is in the `CF-Connecting-IP` header. Use it for logs and rate limits.
 
-## Firewall (Hetzner Cloud Firewall, not ufw)
-Ports published by Docker bypass ufw, so the firewall lives in Hetzner's console, in front of the server:
+## Firewall
+Ports published by Docker bypass ufw, so the web port is guarded by Caddy itself:
 | Port | From |
 |---|---|
-| 22/tcp | anywhere (GitHub Actions deploys over SSH; key-only login) |
-| 443/tcp | only Cloudflare's IP ranges (https://www.cloudflare.com/ips/) |
-Everything else inbound is blocked. Port 80 is not needed: Cloudflare redirects HTTP to HTTPS.
+| 22/tcp | anywhere (GitHub Actions deploys over SSH; key-only login), via ufw |
+| 443/tcp | anywhere at the network level, but the Caddyfile aborts every connection that doesn't come from Cloudflare's IP ranges (https://www.cloudflare.com/ips/). Update that list in `infra/Caddyfile` if Cloudflare changes it. |
+Port 80 is not published: Cloudflare redirects HTTP to HTTPS.
+A Hetzner Cloud Firewall (443 from Cloudflare only) can be added on top later; it isn't required.
 
 ## One-time setup (as root, by hand or with a script in `infra/`)
 1. `apt update && apt upgrade`, and enable `unattended-upgrades`.
@@ -55,4 +56,4 @@ Both services use `restart: unless-stopped`. `app` has a `healthcheck` on `GET /
 SSE streaming needs no extra settings, because Caddy flushes `text/event-stream` responses immediately.
 
 ## Backups
-A nightly cron job on the host runs `sqlite3 .backup` on `app.db` and keeps 14 copies in `/srv/rokomet-stats/backups`. Off-server copies: still to decide.
+`/etc/cron.d/rokomet-backup` runs `/usr/local/bin/rokomet-backup` as root at 03:30 every night: `sqlite3 .backup` of `app.db` from the `rokomet-stats_app_data` volume into `/srv/rokomet-stats/backups/app-YYYY-MM-DD.db` (owner deploy, mode 600), keeping the last 14. Off-server copies: still to decide.
