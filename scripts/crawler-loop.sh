@@ -1,6 +1,7 @@
 #!/bin/sh
 # The crawler container's command (infra/compose.yml, specs/stats-pipeline.md).
-# Every CRAWL_INTERVAL_SECONDS: crawl the current season, then each season in CRAWL_HISTORY once.
+# Every CRAWL_INTERVAL_SECONDS: crawl the current season, refresh club addresses (scripts/clubs.py),
+# then crawl each season in CRAWL_HISTORY once.
 # Each crawl runs CRAWL_SHARDS processes in parallel (each takes every Nth league).
 set -u
 INTERVAL=${CRAWL_INTERVAL_SECONDS:-21600}
@@ -22,6 +23,7 @@ while true; do
   mkdir -p "${WORK_DIR:-/data/work}" && cp /app/scripts/chat-CLAUDE.md "${WORK_DIR:-/data/work}/CLAUDE.md"
   echo "$(date -Is) crawl current season"
   crawl current
+  python3 /app/scripts/clubs.py current || echo "$(date -Is) clubs.py failed"
   for s in $HISTORY; do
     if [ ! -f "$DATA/crawl-$s.done" ]; then
       echo "$(date -Is) crawl season $s"
