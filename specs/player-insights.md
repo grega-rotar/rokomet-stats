@@ -394,6 +394,8 @@ Real example: backs, rounds 1–8, 30+ field shots (35 players). Top 5 and botto
 
 ### Team Elo
 
+(Study numbers. The app now runs Elo with settings fitted on the data: see [stats-pipeline.md](stats-pipeline.md), "Team Elo".)
+
 Start at 1500, K = 32, home advantage +50, margin multiplier ln(goal difference + 1), draws count as half a win. Rounds 1–8:
 
 | # | Team | Elo | Points (season) | Goal diff per match | Last 5: points, GD per match |
