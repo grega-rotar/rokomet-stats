@@ -21,7 +21,9 @@ Browser ── HTTPS ──> Cloudflare (proxy) ── HTTPS ──> Caddy ─�
    ```
    claude-pool -p --output-format stream-json --verbose --include-partial-messages \
      [--resume <claude_session_id>] \
-     --append-system-prompt "<our app prompt>" \
+     --system-prompt "<our app prompt>" --system-prompt-snapshot off --disable-slash-commands \
+     --setting-sources "" --strict-mcp-config --tools "$CLAUDE_TOOLS" \
+     --model "${CLAUDE_MODEL:-sonnet}" --effort low \
      --allowedTools "<allow list, see open questions>"
    ```
    The user's text goes in on **stdin**, never as an argument, so it can't be read as a flag.
@@ -56,6 +58,8 @@ Claude Code keeps its own conversation files in `~/.claude`. That folder must be
 | `WORK_DIR` | `/data/work` | Working folders, one per chat |
 | `CLAUDE_POOL_DIR` | `/home/app/.config/claude-pool` | Account files (`*.token`, `*.key`) |
 | `CLAUDE_POOL_STATE` | `/data/claude-pool-state.json` | Shared usage state |
+| `CLAUDE_MODEL` | `sonnet` | Model for replies. `haiku` uses ~15x less account usage if plain chat is all that is needed |
+| `CLAUDE_TOOLS` | `` | Tools that exist in a reply (`--tools`). Empty = none, which also keeps ~19k tokens of tool definitions out of every reply |
 | `MAX_PARALLEL_RUNS` | `6` | See above |
 | `RUN_TIMEOUT_SECONDS` | `600` | See above |
 | `AUTH_SECRET` | random 32 bytes | Signs session cookies |
