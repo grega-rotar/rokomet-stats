@@ -24,7 +24,8 @@ What you do:
 
 How you write:
 - Answer in the language the user writes in (usually Slovenian or English).
-- Be concise. Use short tables or lists for numbers.`;
+- Be concise. Use short tables or lists for numbers.
+- The court and goal diagram blocks described below are not code: use them when a picture explains better than words.`;
 
 // How to read the stats (tables, tools, rules): scripts/chat-CLAUDE.md, appended when CLAUDE_PROMPT_FILE is set.
 // With --setting-sources "" Claude doesn't load CLAUDE.md files itself.
@@ -65,6 +66,16 @@ export type RunResult = {
   durationMs: number | null;
 };
 
+export type RunOpts = {
+  chatId: string;
+  prompt: string;
+  resumeSessionId: string | null;
+  signal: AbortSignal;
+  hooks: RunHooks;
+  effort?: "low" | "medium" | "high";
+  jsonSchema?: string; // --json-schema: the reply text is then the validated JSON
+};
+
 /** Marks a chat as busy. Returns false if a reply for it is already running (-> 409). */
 export function claimChat(chatId: string): boolean {
   if (state.running.has(chatId)) return false;
@@ -76,14 +87,8 @@ export function releaseChat(chatId: string) {
   state.running.delete(chatId);
 }
 
-export async function runClaude(opts: {
-  chatId: string;
-  prompt: string;
-  resumeSessionId: string | null;
-  signal: AbortSignal;
-  hooks: RunHooks;
-}): Promise<RunResult> {
-  const { chatId, prompt, resumeSessionId, signal, hooks } = opts;
+export async function runClaude(opts: RunOpts): Promise<RunResult> {
+  const { signal, hooks } = opts;
   const empty = { text: "", costUsd: null, durationMs: null };
 
   if (!state.sem.free) hooks.onWaiting?.();
@@ -96,20 +101,14 @@ export async function runClaude(opts: {
 
   try {
     hooks.onStarted?.();
-    return await spawnClaude({ chatId, prompt, resumeSessionId, signal, hooks });
+    return await spawnClaude(opts);
   } finally {
     release();
   }
 }
 
-function spawnClaude(opts: {
-  chatId: string;
-  prompt: string;
-  resumeSessionId: string | null;
-  signal: AbortSignal;
-  hooks: RunHooks;
-}): Promise<RunResult> {
-  const { chatId, prompt, resumeSessionId, signal, hooks } = opts;
+function spawnClaude(opts: RunOpts): Promise<RunResult> {
+  const { chatId, prompt, resumeSessionId, signal, hooks, jsonSchema } = opts;
   const cwd = path.join(/*turbopackIgnore: true*/ process.env.WORK_DIR ?? "./data/work", chatId);
   fs.mkdirSync(cwd, { recursive: true });
 
@@ -135,8 +134,9 @@ function spawnClaude(opts: {
     "--model",
     process.env.CLAUDE_MODEL?.trim() || "sonnet",
     "--effort",
-    "low",
+    opts.effort ?? "low",
   ];
+  if (jsonSchema) args.push("--json-schema", jsonSchema);
   if (resumeSessionId) args.push("--resume", resumeSessionId);
   const tools = process.env.CLAUDE_ALLOWED_TOOLS?.trim();
   if (tools) args.push("--allowedTools", tools);

@@ -1,0 +1,325 @@
+{
+  "headline": "Scores 82.9% from the field (63/76), but 10 two-minute suspensions in 14 matches (0.7 per match) is the leak.",
+  "smallSample": false,
+  "focus": [
+    {
+      "metric": "two",
+      "label": "2-min suspensions per match",
+      "now": "10 in 14 · 0.7/match",
+      "target": "≤ 0.5/match in 4 weeks"
+    },
+    {
+      "metric": "field",
+      "label": "Field shooting under contact",
+      "now": "63/76 · 82.9%",
+      "target": "≥ 83% in 4 weeks"
+    }
+  ],
+  "drills": [
+    {
+      "id": "clean1",
+      "title": "Clean screen and release at 6m",
+      "metric": "two",
+      "minutes": 20,
+      "reps": "5 × 6 reps",
+      "players": 4,
+      "equipment": [
+        "balls",
+        "cones"
+      ],
+      "steps": [
+        "Pivot starts wide of two defenders, steps into the gap and sets a screen with arms in front, no holding.",
+        "Defenders give passive pressure; coach whistles any hook, push or grab as a foul.",
+        "Pivot receives from CB, turns and shoots. Reset after each rep."
+      ],
+      "cues": [
+        "Hands up, palms open",
+        "Use the hips, not the arms",
+        "Move your feet, don't grab"
+      ],
+      "measure": "Fouls whistled per 30 reps; match target is 0.7 down to 0.5 two-minute suspensions per match.",
+      "scene": {
+        "actors": [
+          {
+            "id": "pv",
+            "team": "attack",
+            "label": "PV",
+            "x": 6.6,
+            "y": 3.5,
+            "focus": true
+          },
+          {
+            "id": "cb",
+            "team": "attack",
+            "label": "CB",
+            "x": 10,
+            "y": 0
+          },
+          {
+            "id": "d1",
+            "team": "defence",
+            "label": "D",
+            "x": 7.3,
+            "y": 1.8
+          },
+          {
+            "id": "d2",
+            "team": "defence",
+            "label": "D",
+            "x": 7.3,
+            "y": -1.8
+          },
+          {
+            "id": "gk",
+            "team": "keeper",
+            "label": "GK",
+            "x": 0.5,
+            "y": 0
+          }
+        ],
+        "cones": [
+          [
+            6.6,
+            3.5
+          ],
+          [
+            6.6,
+            0
+          ]
+        ],
+        "ball": "cb",
+        "beats": [
+          [
+            {
+              "type": "run",
+              "actor": "pv",
+              "to": [
+                6.6,
+                0
+              ]
+            }
+          ],
+          [
+            {
+              "type": "pass",
+              "actor": "cb",
+              "target": "pv"
+            }
+          ],
+          [
+            {
+              "type": "shot",
+              "actor": "pv",
+              "zone": "bl",
+              "jump": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": "turn2",
+      "title": "Catch and turn under contact",
+      "metric": "field",
+      "minutes": 25,
+      "reps": "4 × 8 shots",
+      "players": 4,
+      "equipment": [
+        "balls",
+        "keeper goal"
+      ],
+      "steps": [
+        "CB passes to pivot standing at 6.5 m with a defender touching his back.",
+        "Pivot catches, turns on the inside foot and shoots within two steps.",
+        "Alternate turn sides; keeper in goal, count goals."
+      ],
+      "cues": [
+        "Catch with two hands",
+        "Turn on the inside foot",
+        "Shoot early, low corner"
+      ],
+      "measure": "Goals out of 32 shots per session; keep field shooting at 83% or above (63/76 now).",
+      "scene": {
+        "actors": [
+          {
+            "id": "pv",
+            "team": "attack",
+            "label": "PV",
+            "x": 6.5,
+            "y": -1,
+            "focus": true
+          },
+          {
+            "id": "cb",
+            "team": "attack",
+            "label": "CB",
+            "x": 10,
+            "y": 1
+          },
+          {
+            "id": "d1",
+            "team": "defence",
+            "label": "D",
+            "x": 7.2,
+            "y": -0.5
+          },
+          {
+            "id": "gk",
+            "team": "keeper",
+            "label": "GK",
+            "x": 0.5,
+            "y": 0
+          }
+        ],
+        "cones": [],
+        "ball": "cb",
+        "beats": [
+          [
+            {
+              "type": "pass",
+              "actor": "cb",
+              "target": "pv"
+            }
+          ],
+          [
+            {
+              "type": "run",
+              "actor": "pv",
+              "to": [
+                6.4,
+                1
+              ]
+            }
+          ],
+          [
+            {
+              "type": "shot",
+              "actor": "pv",
+              "zone": "bl",
+              "jump": true
+            }
+          ]
+        ]
+      }
+    },
+    {
+      "id": "wing3",
+      "title": "Wing pass to pivot, shot at the gap",
+      "metric": "field",
+      "minutes": 20,
+      "reps": "4 × 6 reps per side",
+      "players": 5,
+      "equipment": [
+        "balls",
+        "keeper goal"
+      ],
+      "steps": [
+        "Wing holds the ball; pivot slides along the 6m line away from his defender.",
+        "Wing passes into the open space; pivot shoots first time without stepping into the 6m area.",
+        "Switch wings after each set."
+      ],
+      "cues": [
+        "Show the hand early",
+        "Slide, don't push off",
+        "Eyes on keeper's hips"
+      ],
+      "measure": "Goals from first-time shots; pivot's 82.9% field shooting held while goals per match stay at 4.5.",
+      "scene": {
+        "actors": [
+          {
+            "id": "pv",
+            "team": "attack",
+            "label": "PV",
+            "x": 6.5,
+            "y": 0,
+            "focus": true
+          },
+          {
+            "id": "rw",
+            "team": "attack",
+            "label": "RW",
+            "x": 2,
+            "y": 8.5
+          },
+          {
+            "id": "d1",
+            "team": "defence",
+            "label": "D",
+            "x": 7.3,
+            "y": 1.5
+          },
+          {
+            "id": "gk",
+            "team": "keeper",
+            "label": "GK",
+            "x": 0.5,
+            "y": 0
+          }
+        ],
+        "cones": [
+          [
+            6.5,
+            2.5
+          ]
+        ],
+        "ball": "rw",
+        "beats": [
+          [
+            {
+              "type": "run",
+              "actor": "pv",
+              "to": [
+                6.4,
+                2.5
+              ]
+            }
+          ],
+          [
+            {
+              "type": "pass",
+              "actor": "rw",
+              "target": "pv"
+            }
+          ],
+          [
+            {
+              "type": "shot",
+              "actor": "pv",
+              "zone": "tl",
+              "jump": true
+            }
+          ]
+        ]
+      }
+    }
+  ],
+  "week": [
+    {
+      "day": "Mon",
+      "drills": [
+        "clean1",
+        "turn2"
+      ]
+    },
+    {
+      "day": "Tue",
+      "drills": [
+        "wing3",
+        "clean1"
+      ]
+    },
+    {
+      "day": "Thu",
+      "drills": [
+        "turn2",
+        "wing3"
+      ]
+    },
+    {
+      "day": "Fri",
+      "drills": [
+        "clean1"
+      ]
+    }
+  ]
+}
