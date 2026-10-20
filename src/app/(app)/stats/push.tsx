@@ -40,6 +40,24 @@ function sameKey(sub: PushSubscription, key: Uint8Array) {
   return a.length === key.length && a.every((v, i) => v === key[i]);
 }
 
+/**
+ * Chromium browsers throw "Registration failed - push service error" (AbortError) when they can't reach
+ * their push service: Brave has it off by default, and VPNs or blockers can block fcm.googleapis.com.
+ */
+async function subscribe(reg: ServiceWorkerRegistration, key: Uint8Array<ArrayBuffer>) {
+  try {
+    return await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key });
+  } catch (e) {
+    if (!(e instanceof DOMException) || e.name !== "AbortError") throw e;
+    const brave = "brave" in navigator;
+    throw new Error(
+      brave
+        ? "Brave has push notifications turned off. Turn on “Use Google services for push messaging” in brave://settings/privacy, restart Brave and try again."
+        : "Your browser couldn't reach its push service. A VPN, ad blocker or firewall may be blocking it, or push is turned off in this browser. Try Chrome, Edge or Firefox.",
+    );
+  }
+}
+
 async function register(sub: PushSubscription) {
   return (await call<{ device: Device }>("/api/push/devices", "POST", { subscription: sub.toJSON() })).device;
 }
@@ -65,7 +83,7 @@ export function usePush() {
       // The server's key changed: the old subscription can't receive anything, so make a new one.
       if (sub && !sameKey(sub, k) && Notification.permission === "granted") {
         await sub.unsubscribe();
-        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: k });
+        sub = await subscribe(reg, k);
       }
       const d = sub ? await register(sub) : null;
       if (!live) return;
@@ -105,7 +123,7 @@ export function usePush() {
           return null;
         }
         const reg = await navigator.serviceWorker.ready;
-        const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key }));
+        const sub = (await reg.pushManager.getSubscription()) ?? (await subscribe(reg, key));
         const d = await register(sub);
         setDevice(d);
         setStatus("on");
