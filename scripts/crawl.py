@@ -14,6 +14,7 @@ import re
 import sqlite3
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -24,7 +25,8 @@ DATA = os.environ.get("STATS_DATA_DIR") or os.path.join(ROOT, "data")
 CACHE = os.path.join(DATA, "cache")
 DELAY = 0.4
 YOUTH = re.compile(r"\b[mž]\d{2}\b|mlad|kadet|deč|dekl|starejš|mlajš", re.I)
-ZONE_COMPETITIONS = re.compile(r"NLB|1\. ?SRL|2\. ?SRL|POKAL", re.I)
+# Competitions that get play-by-play and the PDF (goal zones exist only in some of them; see specs/data-source.md).
+ZONE_COMPETITIONS = re.compile(r"NLB|1\. ?SRL|2\. ?SRL|POKAL|1\. ?A\b", re.I)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS seasons (id INTEGER PRIMARY KEY, name TEXT);
@@ -34,7 +36,8 @@ CREATE TABLE IF NOT EXISTS matches (id INTEGER PRIMARY KEY, season_id INTEGER, c
     round TEXT, date TEXT, time TEXT, status INTEGER,
     home_team_id INTEGER, away_team_id INTEGER, home_club_id INTEGER, away_club_id INTEGER,
     home TEXT, away TEXT, home_goals INTEGER, away_goals INTEGER, home_goals_ht INTEGER, away_goals_ht INTEGER,
-    hall TEXT, attendance INTEGER, referee_a TEXT, referee_b TEXT, home_coach TEXT, away_coach TEXT);
+    hall TEXT, attendance INTEGER, referee_a TEXT, referee_b TEXT, home_coach TEXT, away_coach TEXT,
+    detail TEXT);  -- full: shots, goalkeepers, play-by-play exist (2019/20+); scorers: goals per player only
 CREATE TABLE IF NOT EXISTS player_match (match_id INTEGER, team_id INTEGER, side TEXT, player_id INTEGER,
     first_name TEXT, last_name TEXT, number TEXT, position TEXT, is_goalkeeper INTEGER,
     goals INTEGER, shots INTEGER, goals_7m INTEGER, shots_7m INTEGER,
@@ -50,6 +53,9 @@ CREATE TABLE IF NOT EXISTS team_zones (match_id INTEGER, side TEXT, zone TEXT, g
 CREATE TABLE IF NOT EXISTS team_shooting (match_id INTEGER, side TEXT, goals_7m INTEGER, shots_7m INTEGER,
     miss_over INTEGER, miss_left INTEGER, miss_right INTEGER, zone_goals INTEGER, PRIMARY KEY (match_id, side));
 CREATE TABLE IF NOT EXISTS checks (match_id INTEGER, name TEXT, ok INTEGER, detail TEXT, PRIMARY KEY (match_id, name));
+CREATE TABLE IF NOT EXISTS crawl_progress (key TEXT PRIMARY KEY, season_id INTEGER, season TEXT, shard TEXT,
+    leagues_done INTEGER, leagues_total INTEGER, league TEXT, matches_new INTEGER, errors INTEGER, state TEXT,
+    started_at TEXT, updated_at TEXT);
 """
 
 
@@ -86,46 +92,89 @@ def api(path, form=None, fresh=False):
 def category(name):
     if YOUTH.search(name):
         return "youth"
-    if re.search(r"NLB|1\. ?SRL", name, re.I):
+    # Top flight across the years: Liga NLB / 1. SRL now, "1. NLB LEASING LIGA", "1. A DRŽAVNA ...",
+    # "1. A MRL/ŽRL ..." and "1. A DRL ŽENSKE" in older seasons.
+    if re.search(r"NLB|1\. ?SRL|1\. ?A\b", name, re.I):
         return "top"
     return "senior"
+
+
+def season_year(season):
+    """First year of a season name: '2019/2020' -> 2019, '2009' -> 2009."""
+    return int(season["ime"][:4])
+
+
+# Before 2019/20 RZS has results and goals per player only: no shots, goalkeepers, play-by-play or PDF.
+FULL_DETAIL_FROM = 2019
 
 
 def check(db, mid, name, ok, detail=""):
     db.execute("INSERT OR REPLACE INTO checks VALUES (?,?,?,?)", (mid, name, int(bool(ok)), str(detail)))
 
 
+def safe_api(path):
+    """(data, error). RZS answers 500 for single matches now and then; the match is loaded without that part."""
+    try:
+        return api(path), None
+    except urllib.error.HTTPError as ex:
+        return None, f"HTTP {ex.code}"
+    except Exception as ex:
+        return None, f"{type(ex).__name__}: {ex}"
+
+
+def safe_fetch(path):
+    try:
+        return fetch(path), None
+    except urllib.error.HTTPError as ex:
+        return (None, None), f"HTTP {ex.code}"
+    except Exception as ex:
+        return (None, None), f"{type(ex).__name__}: {ex}"
+
+
 def prefetch(mid, deep):
     """Download everything for a match into the cache before writing, so no DB lock is held during network calls."""
-    det = (api(f"/pregledTekme/{mid}") or {}).get("items") or {}
+    det, _ = safe_api(f"/pregledTekme/{mid}")
+    det = (det or {}).get("items") or {}
     for team, kind in ((det.get("id_domaci"), 1), (det.get("id_gosti"), 2)):
         if team:
-            api(f"/tekma/{mid}/ekipa/{team}/igralci?vrstaEkipe={kind}")
+            safe_api(f"/tekma/{mid}/ekipa/{team}/igralci?vrstaEkipe={kind}")
     if deep:
-        api(f"/pregledAkcijTekma/{mid}/tekma?nacinprikaza=1")
-        fetch(f"/natisniStatistikaTekme/{mid}/tekme?&vrstTiskanja=1")
+        safe_api(f"/pregledAkcijTekma/{mid}/tekma?nacinprikaza=1")
+        safe_fetch(f"/natisniStatistikaTekme/{mid}/tekme?&vrstTiskanja=1")
 
 
-def load_match(db, m, sid, lid, deep):
+def fetched(db, mid, part, error):
+    """Record whether an optional part of a match could be fetched; failed parts are retried next run."""
+    check(db, mid, f"fetch_{part}", error is None, error or "")
+
+
+def load_match(db, m, sid, lid, deep, full_detail):
     mid = m["id"]
-    det = (api(f"/pregledTekme/{mid}") or {}).get("items") or {}
+    det, err = safe_api(f"/pregledTekme/{mid}")
+    fetched(db, mid, "detail", err)
+    det = (det or {}).get("items") or {}
     score = [m.get("goli_domaci_konec"), m.get("goli_gosti_konec")]
-    db.execute("INSERT OR REPLACE INTO matches VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
+    db.execute("INSERT OR REPLACE INTO matches VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
         mid, sid, lid, det.get("krog"), m.get("datumCler"), m.get("cas"), m.get("status"),
         det.get("id_domaci"), det.get("id_gosti"), det.get("id_kluba_domaci"), det.get("id_kluba_gosti"),
         m.get("domaca_ekipa"), m.get("gostujoca_ekipa"), score[0], score[1],
-        det.get("goli_domaci_polcas"), det.get("goli_gosti_polcas"), m.get("dvorana"), det.get("gledalci"),
-        det.get("prvisoednik"), det.get("drugiSodnik"), det.get("domaci_trener"), det.get("gostujoci_trener")))
+        det.get("goli_domaci_polcas"), det.get("goli_gosti_polcas"), m.get("dvorana"), det.get("gledalci") or None,
+        det.get("prvisoednik"), det.get("drugiSodnik"), det.get("domaci_trener"), det.get("gostujoci_trener"),
+        "full" if full_detail else "scorers"))
 
     team_goals = []
     for side, team, kind in (("home", det.get("id_domaci"), 1), ("away", det.get("id_gosti"), 2)):
-        d = (api(f"/tekma/{mid}/ekipa/{team}/igralci?vrstaEkipe={kind}") if team else None) or {}
+        d, err = safe_api(f"/tekma/{mid}/ekipa/{team}/igralci?vrstaEkipe={kind}") if team else (None, "no team id")
+        fetched(db, mid, f"players_{side}", err)
+        d = d or {}
         total = 0
         for p in d.get("lestvicaArray") or []:
+            # Older seasons copy goals into the shot fields: store them as unknown, not as 100% shooting.
+            shots, shots_7m = (p.get("steviloStrelov"), p.get("poskusi_7m")) if full_detail else (None, None)
             db.execute("INSERT OR REPLACE INTO player_match VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", (
                 mid, team, side, p.get("idIgralca"), p.get("ime"), p.get("priimek"), p.get("stevilkaIgralec"),
-                (p.get("igralnoMesto") or "").strip(), p.get("vratar"), p.get("zadetkov"), p.get("steviloStrelov"),
-                p.get("zadetki_7m"), p.get("poskusi_7m"), p.get("rumeni_karton"), p.get("rdeci_kartoni"),
+                (p.get("igralnoMesto") or "").strip(), p.get("vratar"), p.get("zadetkov"), shots,
+                p.get("zadetki_7m"), shots_7m, p.get("rumeni_karton"), p.get("rdeci_kartoni"),
                 p.get("izkljucitve"), json.dumps(p, ensure_ascii=False)))
             total += p.get("zadetkov") or 0
         for g in d.get("lestvicaArrayVratar") or []:
@@ -133,11 +182,14 @@ def load_match(db, m, sid, lid, deep):
             db.execute("INSERT OR REPLACE INTO goalkeeper_match VALUES (?,?,?,?,?,?)",
                        (mid, team, side, g.get("idIgralca"), name, json.dumps(g, ensure_ascii=False)))
         team_goals.append(total)
-    check(db, mid, "player_goals_eq_score", team_goals == score, f"{team_goals} vs {score}")
+    if det:
+        check(db, mid, "player_goals_eq_score", team_goals == score, f"{team_goals} vs {score}")
 
     if not deep:
         return
-    pbp = api(f"/pregledAkcijTekma/{mid}/tekma?nacinprikaza=1") or []
+    pbp, err = safe_api(f"/pregledAkcijTekma/{mid}/tekma?nacinprikaza=1")
+    fetched(db, mid, "pbp", err)
+    pbp = pbp or []
     for i, e in enumerate(pbp):
         t = e.get("cas_tekme") or 0
         db.execute("INSERT OR REPLACE INTO events VALUES (?,?,?,?,?,?,?,?,?,?,?)", (
@@ -147,9 +199,10 @@ def load_match(db, m, sid, lid, deep):
         last = [max(e.get("domaci_gol") or 0 for e in pbp), max(e.get("gosti_gol") or 0 for e in pbp)]
         check(db, mid, "pbp_final_eq_score", last == score, f"{last} vs {score}")
 
-    ctype, body = fetch(f"/natisniStatistikaTekme/{mid}/tekme?&vrstTiskanja=1")
-    if "pdf" not in ctype:
-        check(db, mid, "pdf", False, "no pdf")
+    (ctype, body), err = safe_fetch(f"/natisniStatistikaTekme/{mid}/tekme?&vrstTiskanja=1")
+    fetched(db, mid, "pdf", err)
+    if err or "pdf" not in (ctype or ""):
+        check(db, mid, "pdf", False, err or "no pdf")
         return
     try:
         import parse_zones
@@ -172,24 +225,55 @@ def load_match(db, m, sid, lid, deep):
         check(db, mid, f"zones_plus_7m_eq_score_{side}", zg + sv["goals"] == score[i], f"{zg}+{sv['goals']} vs {score[i]}")
 
 
+def migrate(db):
+    """Columns added after the first release; CREATE TABLE IF NOT EXISTS doesn't add them to old files."""
+    cols = {r[1] for r in db.execute("PRAGMA table_info(matches)")}
+    if "detail" not in cols:
+        db.execute("ALTER TABLE matches ADD COLUMN detail TEXT")
+        db.execute("UPDATE matches SET detail = 'full'")  # everything crawled before this was 2024/25+
+
+
+def needs_load(db, mid):
+    """New match, or one whose detail / players / play-by-play / PDF failed last time (RZS 500)."""
+    if not db.execute("SELECT 1 FROM matches WHERE id=? AND status=1", (mid,)).fetchone():
+        return True
+    return bool(db.execute("SELECT 1 FROM checks WHERE match_id=? AND name LIKE 'fetch_%' AND ok=0", (mid,)).fetchone())
+
+
 def main():
     arg = sys.argv[1] if len(sys.argv) > 1 else "current"
-    shard, shards = map(int, (sys.argv[2] if len(sys.argv) > 2 else "0/1").split("/"))  # e.g. 1/3: every 3rd league
     os.makedirs(CACHE, exist_ok=True)
+    if arg == "--list-seasons":  # for crawler-loop.sh: every season id, newest first
+        print(" ".join(str(s["id"]) for s in api("/seasons", fresh=True)))
+        return
+    shard, shards = map(int, (sys.argv[2] if len(sys.argv) > 2 else "0/1").split("/"))  # e.g. 1/3: every 3rd league
     db = sqlite3.connect(os.path.join(DATA, "stats.db"), timeout=120)
     db.execute("PRAGMA journal_mode = WAL")  # the app reads while the crawler writes
     db.executescript(SCHEMA)
+    migrate(db)
     all_seasons = api("/seasons", fresh=True)  # newest first
     season = all_seasons[0] if arg == "current" else next(s for s in all_seasons if s["id"] == int(arg))
     sid = season["id"]
+    full_detail = season_year(season) >= FULL_DETAIL_FROM
     db.execute("INSERT OR REPLACE INTO seasons VALUES (?,?)", (sid, season["ime"]))
     leagues = (api(f"/leaguesNew/{sid}", fresh=True) or {}).get("seznamLig") or []
-    for n, lg in enumerate(leagues, 1):
-        if n % shards != shard:
-            continue
+    mine = [lg for n, lg in enumerate(leagues, 1) if n % shards == shard]
+    progress = {"new": 0, "errors": 0, "done": 0}
+    started = time.strftime("%Y-%m-%dT%H:%M:%S")
+
+    def report(state, league=""):
+        # One row per crawler process, shown on /stats/crawl.
+        db.execute("INSERT OR REPLACE INTO crawl_progress VALUES (?,?,?,?,?,?,?,?,?,?,?,?)", (
+            f"{shard}/{shards}", sid, season["ime"], f"{shard}/{shards}", progress["done"], len(mine), league,
+            progress["new"], progress["errors"], state, started, time.strftime("%Y-%m-%dT%H:%M:%S")))
+        db.commit()
+
+    report("running")
+    for lg in mine:
         lid, name = lg["id"], lg["ime"]
+        report("running", name)
         cat = category(name)
-        deep = cat != "youth" and bool(ZONE_COMPETITIONS.search(name))
+        deep = full_detail and cat != "youth" and bool(ZONE_COMPETITIONS.search(name))
         db.execute("INSERT OR REPLACE INTO competitions VALUES (?,?,?,?)", (lid, sid, name, cat))
         krogi = (api(f"/pregledKrogiLiga/{sid}/sezona/{lid}", fresh=True) or {}).get("krogi") or []
         loaded = 0
@@ -200,18 +284,22 @@ def main():
             for m in tekme:
                 if m.get("status") != 1 or m.get("goli_domaci_konec") is None:  # 1 = played; 0 = scheduled (0:0)
                     continue
-                done = db.execute("SELECT 1 FROM matches WHERE id=? AND status=1", (m["id"],)).fetchone()
-                if done and m.get("status") == 1:
+                if not needs_load(db, m["id"]):
                     continue
                 try:
                     prefetch(m["id"], deep)
-                    load_match(db, m, sid, lid, deep)
+                    load_match(db, m, sid, lid, deep, full_detail)
                     loaded += 1
+                    progress["new"] += 1
                 except Exception as ex:
                     check(db, m["id"], "load", False, f"{type(ex).__name__}: {ex}")
+                    progress["errors"] += 1
                 db.commit()
-        print(f"[{n}/{len(leagues)}] {name}: {loaded} new matches{' (deep)' if deep else ''}", flush=True)
-    db.commit()
+                if loaded % 10 == 0:
+                    report("running", name)
+        progress["done"] += 1
+        print(f"[{progress['done']}/{len(mine)}] {name}: {loaded} new matches{' (deep)' if deep else ''}", flush=True)
+    report("done")
 
 
 if __name__ == "__main__":

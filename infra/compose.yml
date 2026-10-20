@@ -40,7 +40,7 @@ services:
     environment:
       CRAWL_INTERVAL_SECONDS: 21600
       CRAWL_SHARDS: 3
-      CRAWL_HISTORY: "72 71"
+      CRAWL_HISTORY: all  # every past season once, newest first (about 15-20 h the first time)
     volumes:
       - app_data:/data
 

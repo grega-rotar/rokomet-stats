@@ -16,7 +16,7 @@ RZS API ──> crawler container ──> parsers ──> checks ──> /data/s
 ## Pieces
 | Piece | Where | What it does |
 |---|---|---|
-| Crawler | compose service `crawler`, same image as `app`, runs `scripts/crawler-loop.sh` | Every 6 h (`CRAWL_INTERVAL_SECONDS`): copies `scripts/chat-CLAUDE.md` to `/data/work/CLAUDE.md`, crawls the current season with `CRAWL_SHARDS` (3) parallel `scripts/crawl.py` processes, then each season in `CRAWL_HISTORY` ("72 71") once (marker file `/data/crawl-<id>.done`). |
+| Crawler | compose service `crawler`, same image as `app`, runs `scripts/crawler-loop.sh` | Every 6 h (`CRAWL_INTERVAL_SECONDS`): copies `scripts/chat-CLAUDE.md` to `/data/work/CLAUDE.md`, crawls the current season with `CRAWL_SHARDS` (3) parallel `scripts/crawl.py` processes, then every past season once (`CRAWL_HISTORY=all`, newest first, marker file `/data/crawl-<id>.done`). Before 2019/20 RZS has results and goals per player only (`matches.detail = scorers`, shots stored as NULL). A match whose detail, players, play-by-play or PDF got an RZS error (`fetch_*` check) is retried on the next run. Progress per process: `crawl_progress` table, shown on `/stats/crawl` (refreshes every 15 s). |
 | `stats.db` | `/data/stats.db` in the `app_data` volume, WAL mode, separate from `app.db` | seasons, competitions, matches (played only, `status = 1`), player_match, goalkeeper_match, events (play-by-play), team_zones, team_shooting, checks. Schema in `scripts/crawl.py`. |
 | Checks | `scripts/crawl.py` → `checks` table | Per match: player goals = score; play-by-play final = score; PDF score = score; goal zones + 7m = score (per team). A failed check is stored with its detail; the match is still loaded. |
 | Stats pages | `/stats` (standings, results, top scorers, player search), `/stats/players/[id]` (profile vs position average, weak spots, match by match, similar players, drills button), `/stats/teams/[id]` (goal zones, squad, matches), `/stats/rankings` | Server components reading `stats.db` through `src/lib/stats/`. |
@@ -32,4 +32,4 @@ RZS API ──> crawler container ──> parsers ──> checks ──> /data/s
 ## Still to do
 - AI review of failed checks and a weekly sample read from the PDF image (see the design note in the chat of 2026-10-20).
 - Per-player shot types (6m / wing / 9m) from the PDF player table (`scripts/parse_players.py`, in progress).
-- Seasons before 2024/25 (`CRAWL_HISTORY`), team Elo, club locations ("near you").
+- Team Elo, club locations ("near you").

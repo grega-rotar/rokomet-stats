@@ -101,17 +101,28 @@ export type PlayerProfile = {
   games: { match_id: number; date: string; opponent: string; goals: number; shots: number; two_min: number; result: string }[];
 };
 
-export function playerProfile(playerId: number): PlayerProfile | null {
-  const me = playerSeasons("AND p.player_id = ?", playerId)[0];
+/** The player's latest season with matches, or the one asked for. Profiles never mix seasons. */
+export function playerSeasonIds(playerId: number): { id: number; name: string }[] {
+  return all<{ id: number; name: string }>(
+    `SELECT DISTINCT s.id, s.name FROM player_match p JOIN matches m ON m.id = p.match_id JOIN seasons s ON s.id = m.season_id
+     WHERE p.player_id = ? ORDER BY s.name DESC`,
+    playerId,
+  );
+}
+
+export function playerProfile(playerId: number, seasonId?: number): PlayerProfile | null {
+  const sid = seasonId ?? playerSeasonIds(playerId)[0]?.id;
+  if (sid === undefined) return null;
+  const me = playerSeasons("AND p.player_id = ? AND m.season_id = ?", playerId, sid)[0];
   if (!me) return null;
   const comps = all<{ competition_id: number; season_id: number; name: string }>(
     `SELECT DISTINCT m.competition_id, m.season_id, c.name FROM player_match p JOIN matches m ON m.id = p.match_id
-     JOIN competitions c ON c.id = m.competition_id AND c.season_id = m.season_id WHERE p.player_id = ?`,
-    playerId,
+     JOIN competitions c ON c.id = m.competition_id AND c.season_id = m.season_id WHERE p.player_id = ? AND m.season_id = ?`,
+    playerId, sid,
   );
   const peers = playerSeasons(
-    `AND m.competition_id IN (${comps.map(() => "?").join(",")}) AND p.position = ?`,
-    ...comps.map((c) => c.competition_id), me.position,
+    `AND m.season_id = ? AND m.competition_id IN (${comps.map(() => "?").join(",")}) AND p.position = ?`,
+    sid, ...comps.map((c) => c.competition_id), me.position,
   );
   const sum = (f: (p: PlayerSeason) => number) => peers.reduce((a, p) => a + f(p), 0);
   const avg = {
@@ -157,9 +168,9 @@ export function playerProfile(playerId: number): PlayerProfile | null {
     `SELECT m.id AS match_id, m.date, CASE p.side WHEN 'home' THEN m.away ELSE m.home END AS opponent,
             p.goals, coalesce(p.shots, 0) AS shots, coalesce(p.two_min, 0) AS two_min,
             CASE p.side WHEN 'home' THEN m.home_goals || ':' || m.away_goals ELSE m.away_goals || ':' || m.home_goals END AS result
-     FROM player_match p JOIN matches m ON m.id = p.match_id WHERE p.player_id = ?
+     FROM player_match p JOIN matches m ON m.id = p.match_id WHERE p.player_id = ? AND m.season_id = ?
      ORDER BY substr(m.date,7,4)||substr(m.date,4,2)||substr(m.date,1,2)`,
-    playerId,
+    playerId, sid,
   );
   return {
     player: me,
