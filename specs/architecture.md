@@ -1,7 +1,7 @@
 # Architecture
 
 ```
-Browser ── HTTPS ──> Cloudflare (proxy) ── HTTPS ──> Caddy ──> Next.js (one container)
+Browser ── HTTPS ──> Cloudflare (proxy) ── HTTPS ──> Traefik ──> Next.js (one container)
                                  ├─ UI (App Router, React)
                                  ├─ POST /api/chats/:id/messages ──spawn──> claude-pool -p (stream-json, prompt on stdin)
                                  ├─ GET  /api/health

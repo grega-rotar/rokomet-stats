@@ -5,9 +5,9 @@ A web app with a chat UI. Each chat message is answered by Claude, run through `
 | File | What it covers |
 |---|---|
 | [architecture.md](architecture.md) | How the app works: UI, API, claude-pool, storage |
-| [infrastructure.md](infrastructure.md) | The server, Docker, Cloudflare + Caddy, firewall, folders |
+| [infrastructure.md](infrastructure.md) | The server, Docker, Cloudflare + Traefik, firewall, folders |
 | [deployment.md](deployment.md) | GitHub Actions: build, push, deploy, rollback |
-| [decisions.md](decisions.md) | What we chose and why (Docker, Cloudflare + Caddy, Next.js, SQLite) |
+| [decisions.md](decisions.md) | What we chose and why (Docker, Cloudflare + Traefik, Next.js, SQLite) |
 | [data-source.md](data-source.md) | Where the handball data comes from: RZS public API, stats PDFs, goal zones |
 | [stats-pipeline.md](stats-pipeline.md) | Crawler, stats database, checks, stats pages and chat tools, built into the app |
 | [player-insights.md](player-insights.md) | Per-player data, weak spots and drills, chat questions, similar players, rankings, Elo: what the data supports |
