@@ -361,6 +361,7 @@ def main():
     sid = season["id"]
     full_detail = season_year(season) >= FULL_DETAIL_FROM
     db.execute("INSERT OR REPLACE INTO seasons VALUES (?,?)", (sid, season["ime"]))
+    db.commit()  # commit before every network call: an open write transaction blocks the other shards
     leagues = (api(f"/leaguesNew/{sid}", fresh=True) or {}).get("seznamLig") or []
     mine = [lg for n, lg in enumerate(leagues, 1) if n % shards == shard]
     progress = {"new": 0, "errors": 0, "done": 0}
@@ -380,6 +381,7 @@ def main():
         cat = category(name)
         deep = full_detail and cat != "youth" and bool(ZONE_COMPETITIONS.search(name))
         db.execute("INSERT OR REPLACE INTO competitions VALUES (?,?,?,?)", (lid, sid, name, cat))
+        db.commit()
         krogi = (api(f"/pregledKrogiLiga/{sid}/sezona/{lid}", fresh=True) or {}).get("krogi") or []
         loaded = 0
         for k in krogi:
