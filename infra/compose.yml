@@ -2,25 +2,18 @@
 name: rokomet-stats
 
 services:
-  caddy:
-    image: caddy:2.11.7
-    restart: unless-stopped
-    ports:
-      - "443:443"
-    environment:
-      DOMAIN: ${DOMAIN}
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - ./certs:/certs:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - app
-
   app:
     image: ghcr.io/grega-rotar/rokomet-stats:${IMAGE_TAG:-latest}
     restart: unless-stopped
     env_file: .env
+    # The server-wide Traefik in /srv/edge routes $DOMAIN here (specs/infrastructure.md).
+    networks:
+      - default
+      - edge
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.rokomet.rule=Host(`${DOMAIN}`)
+      - traefik.http.services.rokomet.loadbalancer.server.port=3000
     environment:
       CLAUDE_POOL_SERVER_ID: t4a
       # Chat Claude may only read the stats (scripts/chat-CLAUDE.md); this overrides .env.
@@ -53,8 +46,10 @@ services:
       - app_data:/data
       - ./claude-pool:/home/app/.config/claude-pool:ro
 
+networks:
+  edge:
+    external: true
+
 volumes:
-  caddy_data:
-  caddy_config:
   app_data:
   claude_home:

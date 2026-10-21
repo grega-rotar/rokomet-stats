@@ -6,10 +6,10 @@
 - The server stays clean: only Docker is installed on it. Node, Python and the claude CLI live in the image.
 - Cost: a bit more setup (volumes for `~/.claude`, the claude-pool accounts and its state). Worth it.
 
-## Cloudflare proxy in front, Caddy on the server
+## Cloudflare proxy in front, shared Traefik on the server
 - The domain is on Cloudflare: it gives visitors the certificate, hides the server IP and blocks junk traffic.
-- Caddy terminates the Cloudflare Origin Certificate (SSL mode Full (strict)), so traffic is encrypted all the way to the server.
-- Caddy, not Traefik: one app on one server needs a 4-line Caddyfile. Traefik pays off only when many containers come and go and are routed through Docker labels.
+- Traefik terminates the Cloudflare Origin Certificate (SSL mode Full (strict)), so traffic is encrypted all the way to the server.
+- Traefik, not Caddy (2026-10-21): t4a now hosts more than one app (jakamarinko.com too). With Traefik each repo declares its own route in Docker labels, and no single app owns :443. This app used to run its own Caddy, which was the right call while it was alone on the server.
 - Not a Cloudflare Tunnel: not needed. The Hetzner Cloud Firewall only lets Cloudflare reach port 443.
 - Cost: Cloudflare's ~100 s idle timeout, handled with SSE keep-alive pings.
 

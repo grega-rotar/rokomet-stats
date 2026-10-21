@@ -84,13 +84,13 @@ jobs:
           echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
           echo "${{ secrets.DEPLOY_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/id_ed25519
-      - name: Copy compose.yml and Caddyfile
+      - name: Copy compose.yml
         if: steps.newest.outputs.stale != 'true'
-        run: scp infra/compose.yml infra/Caddyfile deploy@${{ secrets.DEPLOY_HOST }}:/srv/rokomet-stats/
+        run: scp infra/compose.yml deploy@${{ secrets.DEPLOY_HOST }}:/srv/rokomet-stats/
       - name: Pull and restart
         if: steps.newest.outputs.stale != 'true'
         run: |
-          ssh deploy@${{ secrets.DEPLOY_HOST }} "cd /srv/rokomet-stats && export IMAGE_TAG=$TAG && docker compose pull app && docker compose up -d && docker image prune -af"
+          ssh deploy@${{ secrets.DEPLOY_HOST }} "cd /srv/rokomet-stats && export IMAGE_TAG=$TAG && docker compose pull app && docker compose up -d --remove-orphans && docker image prune -af"
       - name: Wait for /api/health
         if: steps.newest.outputs.stale != 'true'
         run: |
