@@ -65,9 +65,9 @@ then scripts/review.py:  failed checks ──rules──> reviews (source 'rule'
 |---|---|---|
 | `CLAUDE_BIN` | `claude-pool` | falls back to `claude` when it isn't on PATH |
 | `REVIEW_MODEL` | `sonnet` | passed as `--model`; empty = the CLI default |
-| `REVIEW_MAX_RUNS` | 20 | AI reviews per run |
+| `REVIEW_MAX_RUNS` | 20 (compose: 0, AI review off to save tokens) | AI reviews per run |
 | `REVIEW_TIMEOUT_SECONDS` | 180 | per Claude run |
-| `AUDIT_SAMPLE` | 10 | matches per audit |
+| `AUDIT_SAMPLE` | 10 (compose: 0, audit off) | matches per audit |
 | `AUDIT_EVERY_DAYS` | 7 | |
 
 **Where it runs:** in the crawler container, right after each crawl, so reviews never lag behind the data. The `claude-pool` accounts are mounted read-only into `crawler`, the same way as into `app` (`infra/compose.yml`). Both containers share `/data/claude-pool-state.json`, so the review sees the same usage numbers as chat. The image installs `python3-fitz` (Debian bookworm, PyMuPDF 1.21); the script tries `import pymupdf` first and falls back to `import fitz`.
